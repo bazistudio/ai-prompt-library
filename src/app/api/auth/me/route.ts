@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
+import { connectToMongoDB } from "@/lib/mongodb/db";
+import { User } from "@/models/User";
 
 export async function GET() {
   try {
@@ -11,12 +13,24 @@ export async function GET() {
       );
     }
 
+    await connectToMongoDB();
+    const userDoc = await User.findById(session.userId).select("username email status createdAt");
+    
+    if (!userDoc) {
+      return NextResponse.json(
+        { success: false, message: "User not found" },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       user: {
-        id: session.userId,
-        email: session.email,
-        username: session.username,
+        id: userDoc._id.toString(),
+        email: userDoc.email,
+        username: userDoc.username,
+        status: userDoc.status || "active",
+        createdAt: userDoc.createdAt,
       },
     });
   } catch (error) {

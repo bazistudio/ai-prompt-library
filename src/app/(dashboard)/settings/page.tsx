@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { AppearanceSettings } from "@/components/settings/AppearanceSettings";
+import { PromptEditorSettings } from "@/components/settings/PromptEditorSettings";
+import { LibrarySettings } from "@/components/settings/LibrarySettings";
+import { AccountSettings } from "@/components/settings/AccountSettings";
+import { StorageSettings } from "@/components/settings/StorageSettings";
 import { AboutSettings } from "@/components/settings/AboutSettings";
-import { ComingSoonSettings } from "@/components/settings/ComingSoonSettings";
 import { Palette, PenTool, Library, User, Database, Info } from "lucide-react";
 
 type SettingsTab = "appearance" | "editor" | "library" | "account" | "storage" | "about";
@@ -12,28 +15,28 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
 
   const tabs = [
-    { id: "appearance", label: "Appearance", icon: Palette, enabled: true },
-    { id: "editor", label: "Prompt Editor", icon: PenTool, enabled: false },
-    { id: "library", label: "Library", icon: Library, enabled: false },
-    { id: "account", label: "Account", icon: User, enabled: false },
-    { id: "storage", label: "Storage", icon: Database, enabled: false },
-    { id: "about", label: "About", icon: Info, enabled: true },
+    { id: "appearance", label: "Appearance", icon: Palette },
+    { id: "editor", label: "Prompt Editor", icon: PenTool },
+    { id: "library", label: "Library", icon: Library },
+    { id: "account", label: "Account", icon: User },
+    { id: "storage", label: "Storage", icon: Database },
+    { id: "about", label: "About", icon: Info },
   ] as const;
 
   const renderActiveSection = () => {
     switch (activeTab) {
       case "appearance":
         return <AppearanceSettings />;
+      case "editor":
+        return <PromptEditorSettings />;
+      case "library":
+        return <LibrarySettings />;
+      case "account":
+        return <AccountSettings />;
+      case "storage":
+        return <StorageSettings />;
       case "about":
         return <AboutSettings />;
-      case "editor":
-        return <ComingSoonSettings title="Prompt Editor Settings" />;
-      case "library":
-        return <ComingSoonSettings title="Library Preferences" />;
-      case "account":
-        return <ComingSoonSettings title="Account Preferences" />;
-      case "storage":
-        return <ComingSoonSettings title="Storage Preferences" />;
       default:
         return <AppearanceSettings />;
     }
@@ -52,23 +55,6 @@ export default function SettingsPage() {
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
-
-            if (!tab.enabled) {
-              return (
-                <div
-                  key={tab.id}
-                  className="flex items-center justify-between px-4 py-2.5 rounded-lg text-xs font-semibold text-muted-foreground/45 border-l-2 border-transparent bg-transparent cursor-not-allowed select-none"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className="h-4 w-4" />
-                    <span>{tab.label}</span>
-                  </div>
-                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-secondary text-muted-foreground/40 border border-border">
-                    Soon
-                  </span>
-                </div>
-              );
-            }
 
             return (
               <button
