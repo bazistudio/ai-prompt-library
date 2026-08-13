@@ -53,8 +53,8 @@ export default async function DashboardPage() {
             Manage your prompts and templates from your central hub.
           </p>
         </div>
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/10 border border-success/20 text-success text-xs font-medium self-start sm:self-auto">
-          <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-status-online text-status-online-foreground text-xs font-semibold self-start sm:self-auto shadow-sm shadow-primary/5">
+          <span className="h-1.5 w-1.5 rounded-full bg-status-online-foreground animate-pulse" />
           Online Mode (MongoDB Active)
         </div>
       </div>

@@ -30,6 +30,9 @@
   --color-success: var(--color-success-value);
   --color-success-foreground: var(--color-success-foreground-value);
 
+  --color-status-online: var(--color-status-online-value);
+  --color-status-online-foreground: var(--color-status-online-foreground-value);
+
   --color-warning: var(--color-warning-value);
   --color-warning-foreground: var(--color-warning-foreground-value);
 
@@ -99,6 +102,9 @@
   --color-success-value: #c5ffe5;
   --color-success-foreground-value: #07150f;
 
+  --color-status-online-value: var(--color-accent-value);
+  --color-status-online-foreground-value: var(--color-accent-foreground-value);
+
   --color-warning-value: #f7d774;
   --color-warning-foreground-value: #211700;
 
@@ -150,6 +156,9 @@
 
   --color-success-value: #c5ffe5;
   --color-success-foreground-value: #07150f;
+
+  --color-status-online-value: var(--color-primary-value);
+  --color-status-online-foreground-value: var(--color-primary-foreground-value);
 
   --color-warning-value: #f7d774;
   --color-warning-foreground-value: #211700;
