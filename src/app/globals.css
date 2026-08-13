@@ -69,7 +69,7 @@
 
   /* ---------- Brand ---------- */
   --color-primary-value: #1a016f;
-  --color-primary-hover-value: #26029a;
+  --color-primary-hover-value: color-mix(in srgb, var(--color-primary-value) 85%, #fff);
   --color-primary-foreground-value: #fcf4ff;
 
   --color-accent-value: #c5ffe5;
@@ -132,7 +132,7 @@
   --color-popover-foreground-value: #1a016f;
 
   --color-primary-value: #1a016f;
-  --color-primary-hover-value: #26029a;
+  --color-primary-hover-value: color-mix(in srgb, var(--color-primary-value) 85%, #000);
   --color-primary-foreground-value: #fcf4ff;
 
   --color-accent-value: #c5ffe5;
@@ -376,4 +376,18 @@ select,
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+.reduce-motion,
+.reduce-motion html {
+  scroll-behavior: auto !important;
+}
+
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
 }

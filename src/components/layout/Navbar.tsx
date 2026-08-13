@@ -12,7 +12,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ onMenuToggle, username, email }: NavbarProps) {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   return (
     <header className="glass-card sticky top-0 z-40 px-4 md:px-6 py-3 flex items-center justify-between h-[65px] w-full">
@@ -77,7 +77,7 @@ export function Navbar({ onMenuToggle, username, email }: NavbarProps) {
 
         {/* Theme Toggle */}
         <button
-          onClick={toggleTheme}
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
           title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
         >
