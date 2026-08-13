@@ -1,0 +1,379 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: var(--color-primary-value);
+  --color-primary-hover: var(--color-primary-hover-value);
+  --color-primary-foreground: var(--color-primary-foreground-value);
+
+  --color-accent: var(--color-accent-value);
+  --color-accent-foreground: var(--color-accent-foreground-value);
+
+  --color-background: var(--color-background-value);
+  --color-foreground: var(--color-foreground-value);
+
+  --color-card: var(--color-card-value);
+  --color-card-foreground: var(--color-card-foreground-value);
+
+  --color-popover: var(--color-popover-value);
+  --color-popover-foreground: var(--color-popover-foreground-value);
+
+  --color-muted: var(--color-muted-value);
+  --color-muted-foreground: var(--color-muted-foreground-value);
+
+  --color-secondary: var(--color-secondary-value);
+  --color-secondary-foreground: var(--color-secondary-foreground-value);
+
+  --color-border: var(--color-border-value);
+  --color-input: var(--color-input-value);
+  --color-ring: var(--color-ring-value);
+
+  --color-success: var(--color-success-value);
+  --color-success-foreground: var(--color-success-foreground-value);
+
+  --color-warning: var(--color-warning-value);
+  --color-warning-foreground: var(--color-warning-foreground-value);
+
+  --color-danger: var(--color-danger-value);
+  --color-danger-foreground: var(--color-danger-foreground-value);
+
+  --color-info: var(--color-info-value);
+  --color-info-foreground: var(--color-info-foreground-value);
+
+  --color-overlay: var(--color-overlay-value);
+
+  /* ---------- Radius ---------- */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
+
+  /* ---------- Shadows ---------- */
+  --shadow-card: var(--shadow-card-value);
+  --shadow-primary: var(--shadow-primary-value);
+
+  /* ---------- Fonts ---------- */
+  --font-sans: var(--font-inter), Inter, Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), "Geist Mono", monospace;
+}
+
+:root {
+  /* =========================================================
+     AI PROMPT LIBRARY — GLOBAL DESIGN TOKENS
+     Default Theme: Dark
+     Brand Colors:
+     Primary  → #1A016F
+     Light    → #FCF4FF
+     Accent   → #C5FFE5
+     ========================================================= */
+
+  /* ---------- Brand ---------- */
+  --color-primary-value: #1a016f;
+  --color-primary-hover-value: #26029a;
+  --color-primary-foreground-value: #fcf4ff;
+
+  --color-accent-value: #c5ffe5;
+  --color-accent-foreground-value: #07150f;
+
+  /* ---------- Dark Theme ---------- */
+  --color-background-value: #0b0620;
+  --color-foreground-value: #fcf4ff;
+
+  --color-card-value: #130a2d;
+  --color-card-foreground-value: #fcf4ff;
+
+  --color-popover-value: #130a2d;
+  --color-popover-foreground-value: #fcf4ff;
+
+  --color-muted-value: #21163d;
+  --color-muted-foreground-value: #c9bfd5;
+
+  --color-secondary-value: #21163d;
+  --color-secondary-foreground-value: #fcf4ff;
+
+  --color-border-value: #30234d;
+  --color-input-value: #30234d;
+  --color-ring-value: #c5ffe5;
+
+  /* ---------- Semantic ---------- */
+  --color-success-value: #c5ffe5;
+  --color-success-foreground-value: #07150f;
+
+  --color-warning-value: #f7d774;
+  --color-warning-foreground-value: #211700;
+
+  --color-danger-value: #ff8f9c;
+  --color-danger-foreground-value: #26070c;
+
+  --color-info-value: #b9c7ff;
+  --color-info-foreground-value: #0b1030;
+
+  /* ---------- Overlay ---------- */
+  --color-overlay-value: rgba(7, 3, 20, 0.72);
+
+  /* ---------- Shadows ---------- */
+  --shadow-card-value: 0 8px 30px rgba(0, 0, 0, 0.18);
+  --shadow-primary-value: 0 8px 30px rgba(26, 1, 111, 0.28);
+}
+
+/* =========================================================
+   LIGHT THEME
+   Inverse / light interpretation of the default dark theme
+   ========================================================= */
+
+.light {
+  --color-background-value: #fcf4ff;
+  --color-foreground-value: #1a016f;
+
+  --color-card-value: #ffffff;
+  --color-card-foreground-value: #1a016f;
+
+  --color-popover-value: #ffffff;
+  --color-popover-foreground-value: #1a016f;
+
+  --color-primary-value: #1a016f;
+  --color-primary-hover-value: #26029a;
+  --color-primary-foreground-value: #fcf4ff;
+
+  --color-accent-value: #c5ffe5;
+  --color-accent-foreground-value: #07150f;
+
+  --color-muted-value: #eee4f4;
+  --color-muted-foreground-value: #665b70;
+
+  --color-secondary-value: #eee4f4;
+  --color-secondary-foreground-value: #1a016f;
+
+  --color-border-value: #ded2e5;
+  --color-input-value: #ded2e5;
+  --color-ring-value: #1a016f;
+
+  --color-success-value: #c5ffe5;
+  --color-success-foreground-value: #07150f;
+
+  --color-warning-value: #f7d774;
+  --color-warning-foreground-value: #211700;
+
+  --color-danger-value: #ff8f9c;
+  --color-danger-foreground-value: #26070c;
+
+  --color-info-value: #b9c7ff;
+  --color-info-foreground-value: #0b1030;
+
+  --color-overlay-value: rgba(26, 1, 111, 0.18);
+
+  --shadow-card-value: 0 8px 30px rgba(26, 1, 111, 0.08);
+  --shadow-primary-value: 0 8px 30px rgba(26, 1, 111, 0.18);
+}
+
+/* =========================================================
+   BASE
+   ========================================================= */
+
+* {
+  box-sizing: border-box;
+  border-color: var(--color-border);
+}
+
+html {
+  min-height: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+
+  background: var(--color-background);
+  color: var(--color-foreground);
+
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+/* =========================================================
+   SELECTION
+   ========================================================= */
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-accent-foreground);
+}
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* =========================================================
+   TYPOGRAPHY
+   ========================================================= */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  color: var(--color-foreground);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-mono);
+}
+
+/* =========================================================
+   FORM ELEMENTS
+   ========================================================= */
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+input,
+textarea,
+select {
+  color: var(--color-foreground);
+  background: var(--color-card);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-muted-foreground);
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   PROMPT / CODE CONTENT
+   ========================================================= */
+
+.prompt-content,
+.code-content {
+  font-family: var(--font-mono);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* =========================================================
+   GLASS CARD STYLES
+   ========================================================= */
+
+.glass-card {
+  background: color-mix(in srgb, var(--color-card) 75%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border);
+}
+
+.glass-card-glow {
+  background: color-mix(in srgb, var(--color-card) 75%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card), 0 0 30px -10px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.brand-text-gradient {
+  background: linear-gradient(to right, var(--color-foreground), var(--color-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.light .brand-text-gradient {
+  background: linear-gradient(to right, var(--color-foreground), var(--color-primary-hover));
+}
+
+/* =========================================================
+   TRANSITIONS
+   ========================================================= */
+
+button,
+a,
+input,
+textarea,
+select,
+[role="button"] {
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease,
+    opacity 150ms ease;
+}
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
