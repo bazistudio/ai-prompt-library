@@ -2,16 +2,22 @@
   "name": "ai-prompt-library",
   "version": "0.1.0",
   "private": true,
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "node scripts/seed-test-user.mjs"
+    "seed": "node scripts/seed-test-user.mjs",
+    "electron:compile": "tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --no-splitting --external electron --external better-sqlite3",
+    "electron:dev": "concurrently -k \"next dev\" \"tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --external electron --external better-sqlite3 --watch --onSuccess \\\"npx electron .\\\"\"",
+    "electron:build": "next build && npm run electron:compile",
+    "electron:dist": "npm run electron:build && electron-builder --win nsis"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.3",
+    "electron-updater": "^6.3.9",
     "jose": "^6.2.8",
     "lucide-react": "^1.31.0",
     "mongoose": "^9.9.2",
@@ -32,9 +38,46 @@
     "@types/uuid": "^10.0.0",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "tailwindcss": "^4",
+    "tsup": "^8.3.6",
     "typescript": "^5"
+  },
+  "build": {
+    "appId": "com.bazistudio.ai-prompt-library",
+    "productName": "AI Prompt Library",
+    "copyright": "Copyright © 2026 BaziStudio",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist-electron/**/*",
+      ".next/**/*",
+      "public/**/*",
+      "build/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AI Prompt Library",
+      "uninstallDisplayName": "AI Prompt Library"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "bazistudio",
+      "repo": "ai-prompt-library"
+    }
   }
 }
