@@ -105,6 +105,15 @@ var electronAPI = {
   updater: {
     checkForUpdates: () => import_electron.ipcRenderer.invoke("updater:check"),
     installUpdate: () => import_electron.ipcRenderer.invoke("updater:install")
+  },
+  prompts: {
+    create: (payload) => import_electron.ipcRenderer.invoke("prompts:create", payload),
+    getAll: (options) => import_electron.ipcRenderer.invoke("prompts:getAll", options),
+    getById: (id) => import_electron.ipcRenderer.invoke("prompts:getById", id),
+    addVersion: (payload) => import_electron.ipcRenderer.invoke("prompts:addVersion", payload),
+    updateMeta: (payload) => import_electron.ipcRenderer.invoke("prompts:updateMeta", payload),
+    toggleFavorite: (id) => import_electron.ipcRenderer.invoke("prompts:toggleFavorite", id),
+    delete: (id) => import_electron.ipcRenderer.invoke("prompts:delete", id)
   }
 };
 import_electron.contextBridge.exposeInMainWorld("electron", electronAPI);

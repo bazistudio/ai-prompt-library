@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { encrypt, decrypt, SessionPayload } from "./jwt";
+import { encrypt, decrypt, SessionPayload } from "@/lib/auth/jwt";
 
 export const SESSION_COOKIE_NAME = "auth_session";
 

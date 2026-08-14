@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { decrypt } from "./lib/auth/jwt";
-import { SESSION_COOKIE_NAME } from "./lib/auth/session";
+import { SESSION_COOKIE_NAME } from "./auth/online/session";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

@@ -47,6 +47,69 @@ export function setupIpcHandlers() {
     return queryAll(entityType);
   });
 
+  // --------------------------------------------------------------------------
+  // Core Prompt Library IPC Handlers
+  // --------------------------------------------------------------------------
+  handleIpc('prompts:create', (_event, payload: any) => {
+    if (!payload || typeof payload !== 'object' || !payload.title || typeof payload.title !== 'string') {
+      throw new Error('[IPC Security] Invalid payload for prompts:create');
+    }
+    const { getDb } = require('../db/index');
+    const { createPromptDb } = require('../db/promptQueries');
+    return createPromptDb(getDb(), payload);
+  });
+
+  handleIpc('prompts:getAll', (_event, options: any) => {
+    const { getDb } = require('../db/index');
+    const { getPromptsDb } = require('../db/promptQueries');
+    return getPromptsDb(getDb(), options || {});
+  });
+
+  handleIpc('prompts:getById', (_event, promptId: string) => {
+    if (!promptId || typeof promptId !== 'string') {
+      throw new Error('[IPC Security] Invalid promptId for prompts:getById');
+    }
+    const { getDb } = require('../db/index');
+    const { getPromptByIdDb } = require('../db/promptQueries');
+    return getPromptByIdDb(getDb(), promptId);
+  });
+
+  handleIpc('prompts:addVersion', (_event, payload: any) => {
+    if (!payload || typeof payload !== 'object' || !payload.promptId || typeof payload.promptId !== 'string') {
+      throw new Error('[IPC Security] Invalid payload for prompts:addVersion');
+    }
+    const { getDb } = require('../db/index');
+    const { addPromptVersionDb } = require('../db/promptQueries');
+    return addPromptVersionDb(getDb(), payload);
+  });
+
+  handleIpc('prompts:updateMeta', (_event, payload: any) => {
+    if (!payload || typeof payload !== 'object' || !payload.promptId || typeof payload.promptId !== 'string') {
+      throw new Error('[IPC Security] Invalid payload for prompts:updateMeta');
+    }
+    const { getDb } = require('../db/index');
+    const { updatePromptMetaDb } = require('../db/promptQueries');
+    return updatePromptMetaDb(getDb(), payload);
+  });
+
+  handleIpc('prompts:toggleFavorite', (_event, promptId: string) => {
+    if (!promptId || typeof promptId !== 'string') {
+      throw new Error('[IPC Security] Invalid promptId for prompts:toggleFavorite');
+    }
+    const { getDb } = require('../db/index');
+    const { toggleFavoriteDb } = require('../db/promptQueries');
+    return toggleFavoriteDb(getDb(), promptId);
+  });
+
+  handleIpc('prompts:delete', (_event, promptId: string) => {
+    if (!promptId || typeof promptId !== 'string') {
+      throw new Error('[IPC Security] Invalid promptId for prompts:delete');
+    }
+    const { getDb } = require('../db/index');
+    const { deletePromptDb } = require('../db/promptQueries');
+    return deletePromptDb(getDb(), promptId);
+  });
+
 
   // Auth / SafeStorage
   handleIpc('auth:setToken', (_event, key: string, token: string) => {

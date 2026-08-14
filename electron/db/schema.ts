@@ -80,7 +80,52 @@ export function initializeSchema(db: Database) {
       status TEXT NOT NULL -- 'pending', 'synced', 'failed'
     );
   `);
-  // 4. Audit Log (Security & Tracking)
+  // 4. Offline Core Prompt Library Entities
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS prompts (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      category TEXT NOT NULL DEFAULT 'Other',
+      is_favorite INTEGER NOT NULL DEFAULT 0,
+      is_archived INTEGER NOT NULL DEFAULT 0,
+      current_version INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS prompt_versions (
+      id TEXT PRIMARY KEY,
+      prompt_id TEXT NOT NULL,
+      version_number INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      change_summary TEXT,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY(prompt_id) REFERENCES prompts(id) ON DELETE CASCADE,
+      UNIQUE(prompt_id, version_number)
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS prompt_tags (
+      id TEXT PRIMARY KEY,
+      prompt_id TEXT NOT NULL,
+      tag_name TEXT NOT NULL,
+      FOREIGN KEY(prompt_id) REFERENCES prompts(id) ON DELETE CASCADE,
+      UNIQUE(prompt_id, tag_name)
+    );
+  `);
+
+  // Prompt Indexes
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prompts_category ON prompts(category);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prompts_is_favorite ON prompts(is_favorite);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prompts_updated_at ON prompts(updated_at);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prompt_versions_prompt_id ON prompt_versions(prompt_id);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prompt_tags_prompt_id ON prompt_tags(prompt_id);`);
+
+  // 5. Audit Log (Security & Tracking)
   db.exec(`
     CREATE TABLE IF NOT EXISTS audit_log (
       id TEXT PRIMARY KEY,

@@ -5,12 +5,13 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "next dev",
+    "dev:all": "npm run electron:dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "seed": "node scripts/seed-test-user.mjs",
     "electron:compile": "tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --no-splitting",
-    "electron:dev": "concurrently -k \"next dev\" \"tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --watch --onSuccess \"electron .\"\"",
+    "electron:dev": "concurrently -k \"next dev\" \"tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --watch --onSuccess 'electron .'\"",
     "electron:build": "next build && npm run electron:compile",
     "electron:dist": "npm run electron:build && electron-builder --win nsis"
   },
@@ -44,6 +45,7 @@
     "electron-builder": "^25.1.8",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "png-to-ico": "^3.0.2",
     "tailwindcss": "^4",
     "tsup": "^8.3.6",
     "typescript": "^5",

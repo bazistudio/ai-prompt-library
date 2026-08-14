@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { connectToMongoDB } from "@/lib/mongodb/db";
-import { getSQLiteDB } from "@/lib/sqlite/db";
-import { User } from "@/models/User";
+import { connectToMongoDB } from "@/database/online/db";
+import { getSQLiteDB } from "@/database/local/db";
+import { User } from "@/database/online/models/User";
 import { registerSchema } from "@/lib/validation/auth";
-import { setSession } from "@/lib/auth/session";
+import { setSession } from "@/auth/online/session";
 
 export async function POST(request: NextRequest) {
   try {

@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth/session";
+import { getSession } from "@/auth/online/session";
 import { Terminal, Sparkles, Layers, Folder, Database, Cpu, Activity } from "lucide-react";
 
 export default async function DashboardPage() {

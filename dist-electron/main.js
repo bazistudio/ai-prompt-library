@@ -215,6 +215,45 @@ function initializeSchema(db3) {
     );
   `);
   db3.exec(`
+    CREATE TABLE IF NOT EXISTS prompts (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      category TEXT NOT NULL DEFAULT 'Other',
+      is_favorite INTEGER NOT NULL DEFAULT 0,
+      is_archived INTEGER NOT NULL DEFAULT 0,
+      current_version INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+  db3.exec(`
+    CREATE TABLE IF NOT EXISTS prompt_versions (
+      id TEXT PRIMARY KEY,
+      prompt_id TEXT NOT NULL,
+      version_number INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      change_summary TEXT,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY(prompt_id) REFERENCES prompts(id) ON DELETE CASCADE,
+      UNIQUE(prompt_id, version_number)
+    );
+  `);
+  db3.exec(`
+    CREATE TABLE IF NOT EXISTS prompt_tags (
+      id TEXT PRIMARY KEY,
+      prompt_id TEXT NOT NULL,
+      tag_name TEXT NOT NULL,
+      FOREIGN KEY(prompt_id) REFERENCES prompts(id) ON DELETE CASCADE,
+      UNIQUE(prompt_id, tag_name)
+    );
+  `);
+  db3.exec(`CREATE INDEX IF NOT EXISTS idx_prompts_category ON prompts(category);`);
+  db3.exec(`CREATE INDEX IF NOT EXISTS idx_prompts_is_favorite ON prompts(is_favorite);`);
+  db3.exec(`CREATE INDEX IF NOT EXISTS idx_prompts_updated_at ON prompts(updated_at);`);
+  db3.exec(`CREATE INDEX IF NOT EXISTS idx_prompt_versions_prompt_id ON prompt_versions(prompt_id);`);
+  db3.exec(`CREATE INDEX IF NOT EXISTS idx_prompt_tags_prompt_id ON prompt_tags(prompt_id);`);
+  db3.exec(`
     CREATE TABLE IF NOT EXISTS audit_log (
       id TEXT PRIMARY KEY,
       tenant_id TEXT NOT NULL,
@@ -450,6 +489,13 @@ var init_backupManager = __esm({
 });
 
 // electron/db/index.ts
+var db_exports = {};
+__export(db_exports, {
+  closeDb: () => closeDb,
+  db: () => db2,
+  getDb: () => getDb,
+  initDb: () => initDb
+});
 function getDb() {
   if (!_db) {
     throw new Error("[DB] Database not initialized. Call initDb() first inside app.whenReady().");
@@ -18502,6 +18548,208 @@ var init_syncEngine = __esm({
   }
 });
 
+// electron/db/promptQueries.ts
+var promptQueries_exports = {};
+__export(promptQueries_exports, {
+  addPromptVersionDb: () => addPromptVersionDb,
+  createPromptDb: () => createPromptDb,
+  deletePromptDb: () => deletePromptDb,
+  getPromptByIdDb: () => getPromptByIdDb,
+  getPromptsDb: () => getPromptsDb,
+  toggleFavoriteDb: () => toggleFavoriteDb,
+  updatePromptMetaDb: () => updatePromptMetaDb
+});
+function normalizeTags(tags) {
+  if (!tags || !Array.isArray(tags)) return [];
+  const set = /* @__PURE__ */ new Set();
+  for (const t of tags) {
+    if (typeof t === "string") {
+      const clean = t.trim().toLowerCase();
+      if (clean) set.add(clean);
+    }
+  }
+  return Array.from(set);
+}
+function createPromptDb(db3, payload) {
+  const promptId = (0, import_uuid2.v7)();
+  const versionId = (0, import_uuid2.v7)();
+  const now = Date.now();
+  const title = (payload.title || "Untitled Prompt").trim();
+  const description = (payload.description || "").trim();
+  const category = (payload.category || "Other").trim();
+  const content = (payload.content || "").trim();
+  const tags = normalizeTags(payload.tags);
+  const tx = db3.transaction(() => {
+    const insertPrompt = db3.prepare(`
+      INSERT INTO prompts (id, title, description, category, is_favorite, is_archived, current_version, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 0, 0, 1, ?, ?)
+    `);
+    insertPrompt.run(promptId, title, description, category, now, now);
+    const insertVersion = db3.prepare(`
+      INSERT INTO prompt_versions (id, prompt_id, version_number, content, change_summary, created_at)
+      VALUES (?, ?, 1, ?, 'Initial version (v1)', ?)
+    `);
+    insertVersion.run(versionId, promptId, content, now);
+    if (tags.length > 0) {
+      const insertTag = db3.prepare(`
+        INSERT OR IGNORE INTO prompt_tags (id, prompt_id, tag_name)
+        VALUES (?, ?, ?)
+      `);
+      for (const tag of tags) {
+        insertTag.run((0, import_uuid2.v7)(), promptId, tag);
+      }
+    }
+  });
+  tx();
+  console.log(`[DB] Created prompt: ${promptId} (${title}) v1`);
+  return { success: true, promptId };
+}
+function addPromptVersionDb(db3, payload) {
+  const { promptId, content, changeSummary } = payload;
+  const now = Date.now();
+  const tx = db3.transaction(() => {
+    const verStmt = db3.prepare(`
+      SELECT MAX(version_number) as maxVer FROM prompt_versions WHERE prompt_id = ?
+    `);
+    const row = verStmt.get(promptId);
+    const nextVer2 = (row && row.maxVer ? row.maxVer : 0) + 1;
+    const insertVer = db3.prepare(`
+      INSERT INTO prompt_versions (id, prompt_id, version_number, content, change_summary, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const versionId = (0, import_uuid2.v7)();
+    insertVer.run(versionId, promptId, nextVer2, (content || "").trim(), (changeSummary || `Version v${nextVer2}`).trim(), now);
+    const updatePrompt = db3.prepare(`
+      UPDATE prompts SET current_version = ?, updated_at = ? WHERE id = ?
+    `);
+    updatePrompt.run(nextVer2, now, promptId);
+    return nextVer2;
+  });
+  const nextVer = tx();
+  console.log(`[DB] Created version v${nextVer} for prompt ${promptId}`);
+  return { success: true, versionNumber: nextVer };
+}
+function updatePromptMetaDb(db3, payload) {
+  const { promptId, title, description, category, tags } = payload;
+  const now = Date.now();
+  const tx = db3.transaction(() => {
+    const fields = [];
+    const params = [];
+    if (title !== void 0) {
+      fields.push("title = ?");
+      params.push(title.trim());
+    }
+    if (description !== void 0) {
+      fields.push("description = ?");
+      params.push(description.trim());
+    }
+    if (category !== void 0) {
+      fields.push("category = ?");
+      params.push(category.trim());
+    }
+    if (fields.length > 0) {
+      fields.push("updated_at = ?");
+      params.push(now);
+      params.push(promptId);
+      const sql = `UPDATE prompts SET ${fields.join(", ")} WHERE id = ?`;
+      db3.prepare(sql).run(...params);
+    }
+    if (tags !== void 0) {
+      db3.prepare(`DELETE FROM prompt_tags WHERE prompt_id = ?`).run(promptId);
+      const cleanTags = normalizeTags(tags);
+      if (cleanTags.length > 0) {
+        const insertTag = db3.prepare(`
+          INSERT OR IGNORE INTO prompt_tags (id, prompt_id, tag_name)
+          VALUES (?, ?, ?)
+        `);
+        for (const tag of cleanTags) {
+          insertTag.run((0, import_uuid2.v7)(), promptId, tag);
+        }
+      }
+    }
+  });
+  tx();
+  return { success: true };
+}
+function toggleFavoriteDb(db3, promptId) {
+  const now = Date.now();
+  const stmt = db3.prepare(`
+    UPDATE prompts SET is_favorite = CASE WHEN is_favorite = 1 THEN 0 ELSE 1 END, updated_at = ?
+    WHERE id = ?
+  `);
+  stmt.run(now, promptId);
+  const getStmt = db3.prepare(`SELECT is_favorite FROM prompts WHERE id = ?`);
+  const row = getStmt.get(promptId);
+  return { success: true, is_favorite: row ? row.is_favorite === 1 : false };
+}
+function deletePromptDb(db3, promptId) {
+  const stmt = db3.prepare(`DELETE FROM prompts WHERE id = ?`);
+  stmt.run(promptId);
+  return { success: true };
+}
+function getPromptsDb(db3, options = {}) {
+  let query = `
+    SELECT 
+      p.id, p.title, p.description, p.category, p.is_favorite, p.is_archived,
+      p.current_version, p.created_at, p.updated_at,
+      pv.content as current_content
+    FROM prompts p
+    LEFT JOIN prompt_versions pv ON p.id = pv.prompt_id AND p.current_version = pv.version_number
+    WHERE p.is_archived = 0
+  `;
+  const params = [];
+  if (options.category && options.category !== "All") {
+    query += ` AND p.category = ?`;
+    params.push(options.category);
+  }
+  if (options.favoriteOnly) {
+    query += ` AND p.is_favorite = 1`;
+  }
+  if (options.search && options.search.trim()) {
+    const term = `%${options.search.trim()}%`;
+    query += ` AND (p.title LIKE ? OR p.description LIKE ? OR pv.content LIKE ?)`;
+    params.push(term, term, term);
+  }
+  query += ` ORDER BY p.updated_at DESC`;
+  const prompts = db3.prepare(query).all(...params);
+  const tagStmt = db3.prepare(`SELECT tag_name FROM prompt_tags WHERE prompt_id = ?`);
+  return prompts.map((p) => {
+    const tagsRows = tagStmt.all(p.id);
+    return __spreadProps(__spreadValues({}, p), {
+      is_favorite: p.is_favorite === 1,
+      is_archived: p.is_archived === 1,
+      tags: tagsRows.map((t) => t.tag_name)
+    });
+  });
+}
+function getPromptByIdDb(db3, promptId) {
+  const pStmt = db3.prepare(`SELECT * FROM prompts WHERE id = ?`);
+  const prompt = pStmt.get(promptId);
+  if (!prompt) return null;
+  const verStmt = db3.prepare(`
+    SELECT id, version_number, content, change_summary, created_at 
+    FROM prompt_versions 
+    WHERE prompt_id = ? 
+    ORDER BY version_number ASC
+  `);
+  const versions = verStmt.all(promptId);
+  const tagStmt = db3.prepare(`SELECT tag_name FROM prompt_tags WHERE prompt_id = ?`);
+  const tagsRows = tagStmt.all(promptId);
+  return __spreadProps(__spreadValues({}, prompt), {
+    is_favorite: prompt.is_favorite === 1,
+    is_archived: prompt.is_archived === 1,
+    tags: tagsRows.map((t) => t.tag_name),
+    versions
+  });
+}
+var import_uuid2;
+var init_promptQueries = __esm({
+  "electron/db/promptQueries.ts"() {
+    "use strict";
+    import_uuid2 = require("uuid");
+  }
+});
+
 // electron/updater.ts
 var updater_exports = {};
 __export(updater_exports, {
@@ -19123,6 +19371,59 @@ function setupIpcHandlers() {
   });
   handleIpc("db:queryAll", (_event, entityType) => {
     return queryAll(entityType);
+  });
+  handleIpc("prompts:create", (_event, payload) => {
+    if (!payload || typeof payload !== "object" || !payload.title || typeof payload.title !== "string") {
+      throw new Error("[IPC Security] Invalid payload for prompts:create");
+    }
+    const { getDb: getDb2 } = (init_db(), __toCommonJS(db_exports));
+    const { createPromptDb: createPromptDb2 } = (init_promptQueries(), __toCommonJS(promptQueries_exports));
+    return createPromptDb2(getDb2(), payload);
+  });
+  handleIpc("prompts:getAll", (_event, options) => {
+    const { getDb: getDb2 } = (init_db(), __toCommonJS(db_exports));
+    const { getPromptsDb: getPromptsDb2 } = (init_promptQueries(), __toCommonJS(promptQueries_exports));
+    return getPromptsDb2(getDb2(), options || {});
+  });
+  handleIpc("prompts:getById", (_event, promptId) => {
+    if (!promptId || typeof promptId !== "string") {
+      throw new Error("[IPC Security] Invalid promptId for prompts:getById");
+    }
+    const { getDb: getDb2 } = (init_db(), __toCommonJS(db_exports));
+    const { getPromptByIdDb: getPromptByIdDb2 } = (init_promptQueries(), __toCommonJS(promptQueries_exports));
+    return getPromptByIdDb2(getDb2(), promptId);
+  });
+  handleIpc("prompts:addVersion", (_event, payload) => {
+    if (!payload || typeof payload !== "object" || !payload.promptId || typeof payload.promptId !== "string") {
+      throw new Error("[IPC Security] Invalid payload for prompts:addVersion");
+    }
+    const { getDb: getDb2 } = (init_db(), __toCommonJS(db_exports));
+    const { addPromptVersionDb: addPromptVersionDb2 } = (init_promptQueries(), __toCommonJS(promptQueries_exports));
+    return addPromptVersionDb2(getDb2(), payload);
+  });
+  handleIpc("prompts:updateMeta", (_event, payload) => {
+    if (!payload || typeof payload !== "object" || !payload.promptId || typeof payload.promptId !== "string") {
+      throw new Error("[IPC Security] Invalid payload for prompts:updateMeta");
+    }
+    const { getDb: getDb2 } = (init_db(), __toCommonJS(db_exports));
+    const { updatePromptMetaDb: updatePromptMetaDb2 } = (init_promptQueries(), __toCommonJS(promptQueries_exports));
+    return updatePromptMetaDb2(getDb2(), payload);
+  });
+  handleIpc("prompts:toggleFavorite", (_event, promptId) => {
+    if (!promptId || typeof promptId !== "string") {
+      throw new Error("[IPC Security] Invalid promptId for prompts:toggleFavorite");
+    }
+    const { getDb: getDb2 } = (init_db(), __toCommonJS(db_exports));
+    const { toggleFavoriteDb: toggleFavoriteDb2 } = (init_promptQueries(), __toCommonJS(promptQueries_exports));
+    return toggleFavoriteDb2(getDb2(), promptId);
+  });
+  handleIpc("prompts:delete", (_event, promptId) => {
+    if (!promptId || typeof promptId !== "string") {
+      throw new Error("[IPC Security] Invalid promptId for prompts:delete");
+    }
+    const { getDb: getDb2 } = (init_db(), __toCommonJS(db_exports));
+    const { deletePromptDb: deletePromptDb2 } = (init_promptQueries(), __toCommonJS(promptQueries_exports));
+    return deletePromptDb2(getDb2(), promptId);
   });
   handleIpc("auth:setToken", (_event, key, token) => {
     setToken(key, token);

@@ -60,6 +60,16 @@ export interface ElectronAPI {
     checkForUpdates: () => Promise<any>;
     installUpdate: () => Promise<void>;
   };
+
+  prompts: {
+    create: (payload: { title: string; description?: string; category?: string; tags?: string[]; content: string }) => Promise<{ success: boolean; promptId: string }>;
+    getAll: (options?: { category?: string; search?: string; favoriteOnly?: boolean }) => Promise<any[]>;
+    getById: (id: string) => Promise<any>;
+    addVersion: (payload: { promptId: string; content: string; changeSummary?: string }) => Promise<{ success: boolean; versionNumber: number }>;
+    updateMeta: (payload: { promptId: string; title?: string; description?: string; category?: string; tags?: string[] }) => Promise<{ success: boolean }>;
+    toggleFavorite: (id: string) => Promise<{ success: boolean; is_favorite: boolean }>;
+    delete: (id: string) => Promise<{ success: boolean }>;
+  };
 }
 
 // --------------------------------------------------------------------------
@@ -128,6 +138,16 @@ const electronAPI: ElectronAPI = {
   updater: {
     checkForUpdates: () => ipcRenderer.invoke('updater:check'),
     installUpdate: () => ipcRenderer.invoke('updater:install')
+  },
+
+  prompts: {
+    create: (payload) => ipcRenderer.invoke('prompts:create', payload),
+    getAll: (options) => ipcRenderer.invoke('prompts:getAll', options),
+    getById: (id) => ipcRenderer.invoke('prompts:getById', id),
+    addVersion: (payload) => ipcRenderer.invoke('prompts:addVersion', payload),
+    updateMeta: (payload) => ipcRenderer.invoke('prompts:updateMeta', payload),
+    toggleFavorite: (id) => ipcRenderer.invoke('prompts:toggleFavorite', id),
+    delete: (id) => ipcRenderer.invoke('prompts:delete', id)
   }
 };
 
