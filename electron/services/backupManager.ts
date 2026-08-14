@@ -24,7 +24,7 @@ export async function createBackup(): Promise<{ success: boolean; message: strin
     }
 
     const dateStr = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupFileName = `tijarat_backup_${dateStr}.db.gz`;
+    const backupFileName = `prompt_library_backup_${dateStr}.db.gz`;
     const destinationFile = path.join(backupPath, backupFileName);
 
     const tempDbPath = path.join(app.getPath('temp'), `temp_backup_${dateStr}.db`);
@@ -59,7 +59,7 @@ export async function createBackup(): Promise<{ success: boolean; message: strin
 export function cleanupOldBackups(backupPath: string) {
   try {
     const files = fs.readdirSync(backupPath)
-      .filter(f => f.startsWith('tijarat_backup_') && f.endsWith('.db.gz'))
+      .filter(f => f.startsWith('prompt_library_backup_') && f.endsWith('.db.gz'))
       .map(f => ({ name: f, time: fs.statSync(path.join(backupPath, f)).mtime.getTime() }))
       .sort((a, b) => b.time - a.time); // newest first
 
@@ -94,8 +94,8 @@ export async function restoreDatabase(backupFilePath: string): Promise<{ success
     }
 
     const userDataPath = app.getPath('userData');
-    const currentDbPath = path.join(userDataPath, 'tijarat_local.db');
-    const preRestorePath = path.join(userDataPath, 'tijarat_local.db.pre-restore');
+    const currentDbPath = path.join(userDataPath, 'prompt_library.db');
+    const preRestorePath = path.join(userDataPath, 'prompt_library.db.pre-restore');
     const extractedTempPath = path.join(app.getPath('temp'), `restore_temp_${Date.now()}.db`);
 
     // Extract
@@ -155,12 +155,12 @@ export function createStartupSnapshot(dbPath: string) {
       }
       
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const backupPath = path.join(backupDir, `tijarat_local_${timestamp}.db.backup`);
+      const backupPath = path.join(backupDir, `prompt_library_${timestamp}.db.backup`);
       fs.copyFileSync(dbPath, backupPath);
       logger.info(`[BackupManager] Startup snapshot created at ${backupPath}`);
       
       const backups = fs.readdirSync(backupDir)
-        .filter(f => f.startsWith('tijarat_local_') && f.endsWith('.db.backup'))
+        .filter(f => f.startsWith('prompt_library_') && f.endsWith('.db.backup'))
         .sort();
         
       if (backups.length > 5) {

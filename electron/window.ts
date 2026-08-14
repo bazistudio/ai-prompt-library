@@ -88,13 +88,13 @@ export function createWindow(): BrowserWindow {
     center: state.x === undefined && state.y === undefined,
 
     // ── Appearance ───────────────────────────────────────────────────────
-    title: "Tijarat Pro – Admin",
-    backgroundColor: "#0a0a0a",          // matches your dark theme bg
+    title: "AI Prompt Library",
+    backgroundColor: "#0a0a0a",          // matches dark theme bg
     show: false,                          // avoid flicker; show after ready
     frame: false,                         // fully frameless on Windows/Linux
     titleBarStyle: "hidden",             // clean, frameless-style look
     trafficLightPosition: { x: 16, y: 16 }, // macOS traffic lights inset
-    icon: path.join(__dirname, "../build/icon.png"),
+    icon: path.join(__dirname, "../build/icon.ico"),
     autoHideMenuBar: true,
 
     // ── Security ─────────────────────────────────────────────────────────
@@ -194,7 +194,7 @@ export function createWindow(): BrowserWindow {
     }
   });
 
-  win.on('minimize', (event: any) => {
+  (win as any).on('minimize', (event: any) => {
     if (getSetting('minimizeToTray')) {
       event.preventDefault();
       win.hide();

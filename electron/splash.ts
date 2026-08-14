@@ -35,7 +35,7 @@ const splashHtml = `
 </head>
 <body>
   <div class="spinner"></div>
-  <h1>Tijarat Pro</h1>
+  <h1>AI Prompt Library</h1>
   <p id="status">Starting...</p>
 </body>
 </html>

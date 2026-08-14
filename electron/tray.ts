@@ -16,11 +16,11 @@ export function setupTray(mainWindow: BrowserWindow) {
 
   try {
     tray = new Tray(iconPath);
-    tray.setToolTip('TijaratPro');
+    tray.setToolTip('AI Prompt Library');
 
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: 'Show TijaratPro',
+        label: 'Show AI Prompt Library',
         click: () => {
           if (mainWindow.isMinimized()) mainWindow.restore();
           if (!mainWindow.isVisible()) mainWindow.show();
@@ -28,7 +28,7 @@ export function setupTray(mainWindow: BrowserWindow) {
         }
       },
       {
-        label: 'Hide TijaratPro',
+        label: 'Hide AI Prompt Library',
         click: () => {
           mainWindow.hide();
         }

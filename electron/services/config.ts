@@ -13,6 +13,6 @@ const defaultConfig: AppConfig = {
 };
 
 export const configStore = new Store<AppConfig>({
-  name: 'tijarat-config',
+  name: 'prompt-library-config',
   defaults: defaultConfig
 });

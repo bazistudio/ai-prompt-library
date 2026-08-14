@@ -45,13 +45,13 @@ const NEXT_DEV_URL = "http://127.0.0.1:3000";
 // --------------------------------------------------------------------------
 let mainWindow: BrowserWindow | null = null;
 
-// Register custom protocol for deep linking (tijaratpro://)
+// Register custom protocol for deep linking (aipromptlibrary://)
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient('tijaratpro', process.execPath, [path.resolve(process.argv[1])]);
+    app.setAsDefaultProtocolClient('aipromptlibrary', process.execPath, [path.resolve(process.argv[1])]);
   }
 } else {
-  app.setAsDefaultProtocolClient('tijaratpro');
+  app.setAsDefaultProtocolClient('aipromptlibrary');
 }
 
 // --------------------------------------------------------------------------
@@ -69,13 +69,13 @@ if (!gotTheLock) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
       
-      const url = commandLine.find(arg => arg.startsWith('tijaratpro://'));
+      const url = commandLine.find(arg => arg.startsWith('aipromptlibrary://'));
       if (url) {
         logger.info(`Received deep link: ${url}`);
         mainWindow.webContents.send('app:deep-link', url);
       }
       
-      const filePath = commandLine.find(arg => arg.endsWith('.tijarat') || arg.endsWith('.tpbackup'));
+      const filePath = commandLine.find(arg => arg.endsWith('.promptlib') || arg.endsWith('.plbackup'));
       if (filePath) {
         logger.info(`Received file to open: ${filePath}`);
         mainWindow.webContents.send('app:open-file', filePath);
@@ -174,7 +174,7 @@ Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
 Displays: ${displays.length} connected
 Resolution: ${primaryDisplay.size.width}x${primaryDisplay.size.height} (Primary)
 Scale Factor: ${primaryDisplay.scaleFactor}
-SQLite Path: ${path.join(app.getPath('userData'), 'tijarat_local.db')}
+SQLite Path: ${path.join(app.getPath('userData'), 'prompt_library.db')}
 ------------------------------
 `);
   
@@ -202,7 +202,7 @@ SQLite Path: ${path.join(app.getPath('userData'), 'tijarat_local.db')}
       const response = dialog.showMessageBoxSync({
         type: 'warning',
         title: 'Startup Taking Too Long',
-        message: 'TijaratPro is taking longer than expected to start.',
+        message: 'AI Prompt Library is taking longer than expected to start.',
         detail: 'Would you like to continue waiting or restart the application?',
         buttons: ['Continue Waiting', 'Restart Application', 'Exit'],
         defaultId: 0,
@@ -263,7 +263,7 @@ SQLite Path: ${path.join(app.getPath('userData'), 'tijarat_local.db')}
       mainWindow.webContents.openDevTools({ mode: "detach" });
     }
   } else {
-    updateSplashStatus(splash, "Loading TijaratPro...");
+    updateSplashStatus(splash, "Loading AI Prompt Library...");
     
     let loadRetries = 0;
     const maxRetries = 2;
@@ -280,7 +280,7 @@ SQLite Path: ${path.join(app.getPath('userData'), 'tijarat_local.db')}
         } else {
           dialog.showErrorBox(
             "Application Load Error",
-            "TijaratPro failed to load the dashboard. Please restart the application."
+            "AI Prompt Library failed to load the workspace. Please restart the application."
           );
           app.quit();
         }

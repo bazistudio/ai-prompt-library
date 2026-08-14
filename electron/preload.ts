@@ -20,6 +20,11 @@ export interface ElectronAPI {
   /** Quits the desktop application */
   quit: () => Promise<void>;
 
+  /** Window controls */
+  minimize: () => Promise<void>;
+  maximize: () => Promise<void>;
+  close: () => Promise<void>;
+
   /** Opens a URL safely in the system default browser */
   openExternal: (url: string) => Promise<void>;
 

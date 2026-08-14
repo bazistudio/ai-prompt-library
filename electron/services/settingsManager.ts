@@ -36,9 +36,8 @@ let settingsStore: Store<AppSettings>;
 export function initSettings() {
   try {
     settingsStore = new Store<AppSettings>({
-      name: 'tijarat-settings',
+      name: 'prompt-library-settings',
       defaults: defaultSettings,
-      projectVersion: '1.0.0', // Used by electron-store for migrations
       migrations: migrations as any
     });
     logger.info(`[SettingsManager] Initialized. Version: ${settingsStore.get('settingsVersion')}`);

@@ -80,7 +80,7 @@ function gracefulShutdown(reason: string, error?: any) {
     const response = dialog.showMessageBoxSync({
       type: 'error',
       title: 'Unexpected Error',
-      message: 'TijaratPro encountered an unexpected error.',
+      message: 'AI Prompt Library encountered an unexpected error.',
       detail: 'The application needs to close safely.\n\nPlease restart the application.\n\nIf the issue continues, contact support and send the log file.',
       buttons: ['Restart App', 'Copy Error Details', 'Open Logs Folder', 'View Logs', 'Exit'],
       defaultId: 0,

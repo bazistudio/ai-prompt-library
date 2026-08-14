@@ -41,7 +41,7 @@ export const db: BetterSqlite3Database = new Proxy({} as BetterSqlite3Database, 
 export function initDb() {
   if (_db) return; // Idempotent — safe to call multiple times
 
-  const dbPath = path.join(app.getPath('userData'), 'tijarat_local.db');
+  const dbPath = path.join(app.getPath('userData'), 'prompt_library.db');
 
   // Backup DB before running schema migrations
   // Doing this before opening the database connection ensures a clean snapshot

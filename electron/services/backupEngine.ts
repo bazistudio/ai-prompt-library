@@ -18,7 +18,7 @@ export async function createBackup(): Promise<{ success: boolean; message: strin
     }
 
     const dateStr = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupFileName = `tijarat_backup_${dateStr}.db.gz`;
+    const backupFileName = `prompt_library_backup_${dateStr}.db.gz`;
     const destinationFile = path.join(backupPath, backupFileName);
 
     // 1. We must safely copy the DB. better-sqlite3 provides a .backup() method
@@ -54,7 +54,7 @@ export async function createBackup(): Promise<{ success: boolean; message: strin
 function cleanupOldBackups(backupPath: string) {
   try {
     const files = fs.readdirSync(backupPath)
-      .filter(f => f.startsWith('tijarat_backup_') && f.endsWith('.db.gz'))
+      .filter(f => f.startsWith('prompt_library_backup_') && f.endsWith('.db.gz'))
       .map(f => ({ name: f, time: fs.statSync(path.join(backupPath, f)).mtime.getTime() }))
       .sort((a, b) => b.time - a.time); // newest first
 

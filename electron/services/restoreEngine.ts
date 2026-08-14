@@ -12,8 +12,8 @@ export async function restoreDatabase(backupFilePath: string): Promise<{ success
     }
 
     const userDataPath = app.getPath('userData');
-    const currentDbPath = path.join(userDataPath, 'tijarat_local.db');
-    const preRestorePath = path.join(userDataPath, 'tijarat_local.db.pre-restore');
+    const currentDbPath = path.join(userDataPath, 'prompt_library.db');
+    const preRestorePath = path.join(userDataPath, 'prompt_library.db.pre-restore');
     const extractedTempPath = path.join(app.getPath('temp'), `restore_temp_${Date.now()}.db`);
 
     // 1. Extract the gzip backup to a temp file

@@ -31,10 +31,11 @@ export function setupUpdater(mainWindow: BrowserWindow) {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
-  // Override feed URL to use our secure Cloud Run backend instead of direct GitHub API
+  // Configure GitHub Releases provider for official auto-updates
   autoUpdater.setFeedURL({
-    provider: "generic",
-    url: "https://tijaratpro-api-598374253827.asia-south1.run.app/api/v1/updates"
+    provider: "github",
+    owner: "bazistudio",
+    repo: "ai-prompt-library"
   });
 
   if (!isUpdaterInitialized) {
@@ -69,8 +70,8 @@ export function setupUpdater(mainWindow: BrowserWindow) {
       
       dialog.showMessageBox(mainWindow, {
         type: 'info',
-        title: 'TijaratPro Update Ready',
-        message: `A new version (${info.version}) of TijaratPro has been downloaded and is ready to install.`,
+        title: 'AI Prompt Library Update Ready',
+        message: `A new version (${info.version}) of AI Prompt Library has been downloaded and is ready to install.`,
         buttons: ['Install Now', 'Later'],
         defaultId: 0,
         cancelId: 1
