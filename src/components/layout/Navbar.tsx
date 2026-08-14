@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Terminal, Home, Search, Sun, Moon, UserCircle, Menu } from "lucide-react";
+import { Terminal, Home, Search, Sun, Moon, UserCircle, Menu, PlusCircle } from "lucide-react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { LogoutButton } from "@/components/ui/LogoutButton";
 
@@ -67,6 +67,14 @@ export function Navbar({ onMenuToggle, username, email }: NavbarProps) {
 
       {/* Right side */}
       <div className="flex items-center gap-3 md:gap-4">
+        {/* New Prompt Button */}
+        <Link
+          href="/prompts/new"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+        >
+          <PlusCircle className="h-4 w-4" />
+          <span className="hidden sm:inline">New Prompt</span>
+        </Link>
         {/* Mobile Search Icon Placeholder (visible only on mobile) */}
         <button
           onClick={() => alert("Search is placeholder only in the boilerplate phase.")}
