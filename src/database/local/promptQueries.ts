@@ -53,21 +53,18 @@ export function createPromptDb(db: Database, payload: CreatePromptPayload) {
   const tags = normalizeTags(payload.tags);
 
   const tx = db.transaction(() => {
-    // 1. Insert prompt record
     const insertPrompt = db.prepare(`
       INSERT INTO prompts (id, title, description, category, is_favorite, is_archived, current_version, created_at, updated_at)
       VALUES (?, ?, ?, ?, 0, 0, 1, ?, ?)
     `);
     insertPrompt.run(promptId, title, description, category, now, now);
 
-    // 2. Insert initial version (v1)
     const insertVersion = db.prepare(`
       INSERT INTO prompt_versions (id, prompt_id, version_number, content, change_summary, created_at)
       VALUES (?, ?, 1, ?, 'Initial version (v1)', ?)
     `);
     insertVersion.run(versionId, promptId, content, now);
 
-    // 3. Insert tags
     if (tags.length > 0) {
       const insertTag = db.prepare(`
         INSERT OR IGNORE INTO prompt_tags (id, prompt_id, tag_name)
@@ -89,14 +86,12 @@ export function addPromptVersionDb(db: Database, payload: AddVersionPayload) {
   const now = Date.now();
 
   const tx = db.transaction(() => {
-    // 1. Get max version number for this prompt
     const verStmt = db.prepare(`
       SELECT MAX(version_number) as maxVer FROM prompt_versions WHERE prompt_id = ?
     `);
     const row = verStmt.get(promptId) as { maxVer: number | null };
     const nextVer = (row && row.maxVer ? row.maxVer : 0) + 1;
 
-    // 2. Insert new immutable version
     const insertVer = db.prepare(`
       INSERT INTO prompt_versions (id, prompt_id, version_number, content, change_summary, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -104,7 +99,6 @@ export function addPromptVersionDb(db: Database, payload: AddVersionPayload) {
     const versionId = uuidv7();
     insertVer.run(versionId, promptId, nextVer, (content || '').trim(), (changeSummary || `Version v${nextVer}`).trim(), now);
 
-    // 3. Update prompt current_version and updated_at
     const updatePrompt = db.prepare(`
       UPDATE prompts SET current_version = ?, updated_at = ? WHERE id = ?
     `);
@@ -217,7 +211,6 @@ export function getPromptsDb(db: Database, options: GetPromptsOptions = {}) {
 
   const prompts = db.prepare(query).all(...params) as any[];
 
-  // Fetch tags for each prompt
   const tagStmt = db.prepare(`SELECT tag_name FROM prompt_tags WHERE prompt_id = ?`);
   return prompts.map(p => {
     const tagsRows = tagStmt.all(p.id) as { tag_name: string }[];

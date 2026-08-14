@@ -11,7 +11,7 @@ import {
   AddVersionPayload,
   UpdateMetaPayload,
   GetPromptsOptions,
-} from "../../../electron/db/promptQueries";
+} from "./promptQueries";
 
 export function createPrompt(payload: CreatePromptPayload) {
   const db = getSQLiteDB();

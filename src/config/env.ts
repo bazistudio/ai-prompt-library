@@ -4,7 +4,7 @@ const envSchema = z.object({
   MONGODB_URI: z.string().url(),
   JWT_SECRET: z.string().min(8),
   NEXT_PUBLIC_APP_NAME: z.string().default("AI Prompt Library"),
-  SQLITE_DB_PATH: z.string().default("./prompt-library.db"),
+  SQLITE_DB_PATH: z.string().optional(),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
 
@@ -29,7 +29,7 @@ if (typeof window === "undefined") {
     MONGODB_URI: "",
     JWT_SECRET: "",
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || "AI Prompt Library",
-    SQLITE_DB_PATH: "./prompt-library.db",
+    SQLITE_DB_PATH: undefined,
     NODE_ENV: "development",
   };
 }

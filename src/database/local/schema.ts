@@ -1,10 +1,15 @@
 import { Database } from 'better-sqlite3';
-import { logger } from '../logger';
 
 export function initializeSchema(db: Database) {
-  // We use execute because these are DDL statements.
-  
-  // 1. Core Data Entities
+  // 1. Core Data Entities & System Health
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS system_checks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      checked_at TEXT NOT NULL,
+      status TEXT NOT NULL
+    );
+  `);
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -53,7 +58,7 @@ export function initializeSchema(db: Database) {
       db.exec(`ALTER TABLE orders ADD COLUMN ${col};`);
     } catch (err) {
       if (!(err instanceof Error) || !err.message.includes('duplicate column name')) {
-        logger.warn(`[DB] Migration warn: Could not add ${col} to orders:`, err);
+        console.warn(`[DB] Migration warn: Could not add ${col} to orders:`, err);
       }
     }
   }
@@ -61,10 +66,10 @@ export function initializeSchema(db: Database) {
   // 2. Sync Queue (Pending mutations)
   db.exec(`
     CREATE TABLE IF NOT EXISTS sync_queue (
-      id TEXT PRIMARY KEY, -- Same as operation_log ID for tracing
+      id TEXT PRIMARY KEY,
       entity_type TEXT NOT NULL,
-      operation TEXT NOT NULL, -- 'CREATE', 'UPDATE', 'DELETE'
-      payload TEXT NOT NULL, -- JSON
+      operation TEXT NOT NULL,
+      payload TEXT NOT NULL,
       timestamp INTEGER NOT NULL
     );
   `);
@@ -77,9 +82,10 @@ export function initializeSchema(db: Database) {
       operation TEXT NOT NULL,
       payload TEXT NOT NULL,
       timestamp INTEGER NOT NULL,
-      status TEXT NOT NULL -- 'pending', 'synced', 'failed'
+      status TEXT NOT NULL
     );
   `);
+
   // 4. Offline Core Prompt Library Entities
   db.exec(`
     CREATE TABLE IF NOT EXISTS prompts (
