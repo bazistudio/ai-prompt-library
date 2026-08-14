@@ -1,3 +1,4 @@
+import { app } from "electron";
 import { autoUpdater } from "electron-updater";
 
 export function initializeUpdater() {
@@ -29,8 +30,8 @@ export function initializeUpdater() {
     console.log(`[Updater] Update downloaded: v${info.version}. Will install on restart.`);
   });
 
-  // Perform check in production builds
-  if (process.env.NODE_ENV !== "development") {
+  // Perform check ONLY in packaged production builds
+  if (app.isPackaged) {
     autoUpdater.checkForUpdatesAndNotify().catch((err) => {
       console.error("[Updater] Failed initial update check:", err);
     });

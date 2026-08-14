@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const result = createPrompt(body);
+    const result = await createPrompt(body);
+    if (!result.success) {
+      return NextResponse.json({ success: false, message: result.error }, { status: 400 });
+    }
     return NextResponse.json(result, { status: 201 });
   } catch (error: any) {
     console.error("POST /api/desktop-prompts error:", error);

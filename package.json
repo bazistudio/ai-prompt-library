@@ -10,7 +10,7 @@
     "lint": "eslint",
     "seed": "node scripts/seed-test-user.mjs",
     "electron:compile": "tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --no-splitting --external electron --external better-sqlite3",
-    "electron:dev": "concurrently -k \"next dev\" \"tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --external electron --external better-sqlite3 --watch --onSuccess \\\"npx electron .\\\"\"",
+    "electron:dev": "concurrently -k \"next dev\" \"cross-env NODE_ENV=development tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --external electron --external better-sqlite3 --watch --onSuccess \\\"npx electron .\\\"\"",
     "electron:build": "next build && npm run electron:compile",
     "electron:dist": "npm run electron:build && electron-builder --win nsis"
   },

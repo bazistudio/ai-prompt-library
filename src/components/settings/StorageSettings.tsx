@@ -4,76 +4,124 @@ import { useState, useEffect } from "react";
 import { SettingsSection } from "./SettingsSection";
 import {
   HardDrive,
-  Database,
   FolderOpen,
   FolderEdit,
   CheckCircle2,
-  Layers,
-  Clock,
+  AlertCircle,
+  Loader2,
+  FolderSync,
+  X,
 } from "lucide-react";
+import {
+  getStoragePath,
+  selectStorageFolder,
+  setStoragePath,
+  moveLibrary,
+  openStorageFolder,
+} from "@/services/storage/storageService";
 
 export function StorageSettings() {
-  const [dbInfo, setDbInfo] = useState<{
-    path: string;
-    sizeFormatted: string;
-    mode: string;
-  } | null>(null);
+  const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    if (typeof window !== "undefined" && (window as any).electron?.db?.getInfo) {
-      (window as any).electron.db
-        .getInfo()
-        .then((info: any) => {
-          if (isMounted) setDbInfo(info);
-        })
-        .catch(console.error)
-        .finally(() => {
-          if (isMounted) setLoading(false);
-        });
-    } else {
+  // Relocation Modal State
+  const [pendingNewPath, setPendingNewPath] = useState<string | null>(null);
+
+  const loadStorage = async () => {
+    try {
+      const p = await getStoragePath();
+      setCurrentPath(p);
+    } catch (err) {
+      console.error("Failed to load storage path:", err);
+    } finally {
       setLoading(false);
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const handleOpenFolder = async () => {
-    if (typeof window !== "undefined" && (window as any).electron?.db?.openFolder) {
-      try {
-        await (window as any).electron.db.openFolder();
-      } catch (err) {
-        console.error("Open folder error:", err);
-      }
     }
   };
 
-  const handleChangeLocation = async () => {
-    if (typeof window !== "undefined" && (window as any).electron?.db?.selectFolder) {
-      try {
-        const result = await (window as any).electron.db.selectFolder();
-        if (!result.canceled && result.filePaths.length > 0) {
-          const newFolder = result.filePaths[0];
-          await (window as any).electron.db.setBackupPath(newFolder);
-          setMessage(`Storage location updated to: ${newFolder}`);
-          setTimeout(() => setMessage(null), 4000);
+  useEffect(() => {
+    loadStorage();
+  }, []);
+
+  const handleSelectOrChange = async () => {
+    setActionLoading(true);
+    setMessage(null);
+    try {
+      const res = await selectStorageFolder();
+      if (!res.canceled && res.filePaths && res.filePaths.length > 0) {
+        const selected = res.filePaths[0];
+
+        if (currentPath && currentPath !== selected) {
+          // Open relocation modal
+          setPendingNewPath(selected);
+        } else {
+          // Direct set for first use or re-selecting same folder
+          const saveRes = await setStoragePath(selected);
+          if (saveRes.success) {
+            setCurrentPath(saveRes.storagePath || selected);
+            setMessage({ type: "success", text: `Storage location configured: ${selected}` });
+          } else {
+            setMessage({ type: "error", text: saveRes.error || "Failed to set storage path." });
+          }
         }
-      } catch (err) {
-        console.error("Select folder error:", err);
       }
+    } catch (err: any) {
+      setMessage({ type: "error", text: err.message || "Failed to select folder." });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleConfirmMove = async (shouldMove: boolean) => {
+    if (!pendingNewPath) return;
+
+    const newPath = pendingNewPath;
+    setPendingNewPath(null);
+    setActionLoading(true);
+    setMessage(null);
+
+    try {
+      if (shouldMove) {
+        // Move Library (Verified Async Copy Contract)
+        const res = await moveLibrary(newPath);
+        if (res.success) {
+          setCurrentPath(res.storagePath || newPath);
+          setMessage({ type: "success", text: `Prompt library safely moved and updated to: ${newPath}` });
+        } else {
+          setMessage({ type: "error", text: res.error || "Failed to move prompt library. Original location kept." });
+        }
+      } else {
+        // Use New Location Without Moving
+        const res = await setStoragePath(newPath);
+        if (res.success) {
+          setCurrentPath(res.storagePath || newPath);
+          setMessage({ type: "success", text: `Storage location switched to: ${newPath} (Original files left untouched).` });
+        } else {
+          setMessage({ type: "error", text: res.error || "Failed to set storage path." });
+        }
+      }
+    } catch (err: any) {
+      setMessage({ type: "error", text: err.message || "Failed to update storage location." });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleOpenFolder = async () => {
+    setMessage(null);
+    const res = await openStorageFolder();
+    if (!res.success) {
+      setMessage({ type: "error", text: res.error || "Could not open storage folder." });
     }
   };
 
   return (
     <div className="space-y-8 max-w-2xl text-left">
-      {/* 1. Desktop SQLite Storage Location */}
+      {/* 1. Prompt Library Physical Folder Location */}
       <SettingsSection
-        title="Desktop Storage Location (SQLite)"
-        description="Single local source of truth for your desktop prompt library and version histories."
+        title="Prompt Storage Location"
+        description="Configure the folder on your computer where your prompt Markdown files and categories are stored."
       >
         <div className="glass-card p-6 rounded-2xl border border-primary/40 space-y-5 bg-card">
           <div className="flex items-center justify-between">
@@ -82,50 +130,75 @@ export function StorageSettings() {
                 <HardDrive className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">Local SQLite Database</h3>
+                <h3 className="text-base font-bold text-foreground">Prompt Library Storage</h3>
                 <span className="text-[10px] text-muted-foreground">
-                  {dbInfo?.mode || "SQLite (WAL Mode)"}
+                  Offline Local File Engine
                 </span>
               </div>
             </div>
 
-            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-status-online text-status-online-foreground flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" />
-              Active Local DB
-            </span>
+            {currentPath ? (
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-status-online text-status-online-foreground flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Configured
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Not Configured
+              </span>
+            )}
           </div>
 
           {message && (
-            <div className="p-3 rounded-xl bg-success/10 border border-success/20 text-success text-xs font-semibold">
-              {message}
+            <div
+              className={`p-3 rounded-xl border text-xs font-semibold ${
+                message.type === "success"
+                  ? "bg-success/10 border-success/20 text-success"
+                  : "bg-danger/10 border-danger/20 text-danger"
+              }`}
+            >
+              {message.text}
             </div>
           )}
 
-          {/* Database Path Display */}
+          {/* Current Path Display */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-muted-foreground">
-              Current Database File Path:
+              Current Prompt Library Folder Path:
             </label>
             <div className="p-3 rounded-xl bg-background border border-border font-mono text-xs text-foreground break-all">
-              {loading
-                ? "Loading database path..."
-                : dbInfo?.path || "C:\\Users\\Bazi\\AppData\\Roaming\\ai-prompt-library\\prompt_library.db"}
+              {loading ? (
+                "Loading storage path..."
+              ) : currentPath ? (
+                currentPath
+              ) : (
+                <span className="text-muted-foreground italic">
+                  Not configured (No prompt files will be written until selected)
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Actions */}
+          {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-border/40">
             <button
-              onClick={handleChangeLocation}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary cursor-pointer"
+              onClick={handleSelectOrChange}
+              disabled={actionLoading}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary cursor-pointer disabled:opacity-50"
             >
-              <FolderEdit className="h-4 w-4" />
-              <span>Change Storage Location</span>
+              {actionLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FolderEdit className="h-4 w-4" />
+              )}
+              <span>{currentPath ? "Change Location" : "Choose Folder"}</span>
             </button>
 
             <button
               onClick={handleOpenFolder}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-border bg-card hover:bg-muted text-foreground font-semibold text-xs transition-colors cursor-pointer"
+              disabled={!currentPath}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground font-semibold text-xs transition-colors cursor-pointer disabled:opacity-50"
             >
               <FolderOpen className="h-4 w-4" />
               <span>Open Storage Folder</span>
@@ -134,52 +207,61 @@ export function StorageSettings() {
         </div>
       </SettingsSection>
 
-      {/* 2. Storage Engines Comparison */}
-      <SettingsSection
-        title="Storage Engines Overview"
-        description="Comparison between current offline local storage and future cloud synchronization."
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* SQLite Card */}
-          <div className="glass-card p-5 rounded-2xl border border-primary/30 flex flex-col justify-between gap-4 bg-card">
+      {/* Relocation Modal */}
+      {pendingNewPath && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg bg-card border border-border rounded-2xl p-6 shadow-2xl space-y-5 text-left animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between">
-              <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                <HardDrive className="h-4 w-4" />
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                  <FolderSync className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">Change Storage Location</h3>
+                  <p className="text-xs text-muted-foreground">Select how existing files should be handled.</p>
+                </div>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                Current Desktop MVP
-              </span>
+              <button
+                onClick={() => setPendingNewPath(null)}
+                className="text-muted-foreground hover:text-foreground p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
-            <div className="space-y-1">
-              <h4 className="text-sm font-bold text-foreground">SQLite (Offline Core)</h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Stores all prompts, tags, categories, and immutable version histories locally with 100% offline access.
+            <div className="p-4 rounded-xl bg-muted/40 border border-border/60 text-xs text-muted-foreground space-y-2">
+              <p className="font-semibold text-foreground">New location selected:</p>
+              <p className="font-mono text-[11px] bg-background p-2 rounded-lg border border-border break-all">
+                {pendingNewPath}
               </p>
-            </div>
-          </div>
-
-          {/* MongoDB Card */}
-          <div className="glass-card p-5 rounded-2xl border border-border flex flex-col justify-between gap-4 bg-card/40 opacity-70">
-            <div className="flex items-center justify-between">
-              <div className="h-9 w-9 rounded-xl bg-secondary text-muted-foreground flex items-center justify-center">
-                <Database className="h-4 w-4" />
-              </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                Frozen SaaS Version
-              </span>
+              <p>Your existing Prompt Library already contains category folders and prompt files.</p>
             </div>
 
-            <div className="space-y-1">
-              <h4 className="text-sm font-bold text-foreground">MongoDB (Cloud SaaS)</h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Reserved for future online accounts, multi-device synchronization, and web app subscriptions.
-              </p>
+            <div className="flex flex-col gap-2.5 pt-2">
+              <button
+                onClick={() => handleConfirmMove(true)}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground font-bold text-xs transition-all shadow-md cursor-pointer"
+              >
+                <span>Move Library (Copy & Verify Files)</span>
+              </button>
+
+              <button
+                onClick={() => handleConfirmMove(false)}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground font-semibold text-xs transition-colors cursor-pointer"
+              >
+                <span>Use New Location Without Moving</span>
+              </button>
+
+              <button
+                onClick={() => setPendingNewPath(null)}
+                className="w-full text-center text-xs font-semibold text-muted-foreground hover:text-foreground py-1 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
-      </SettingsSection>
+      )}
     </div>
   );
 }

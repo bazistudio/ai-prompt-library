@@ -31,7 +31,10 @@ export async function POST(
     const { id } = await params;
     const body = await request.json();
     if (body.action === "addVersion") {
-      const result = addPromptVersion({ promptId: id, content: body.content, changeSummary: body.changeSummary });
+      const result = await addPromptVersion({ promptId: id, content: body.content, changeSummary: body.changeSummary });
+      if (!result.success) {
+        return NextResponse.json({ success: false, message: result.error }, { status: 400 });
+      }
       return NextResponse.json(result);
     } else if (body.action === "toggleFavorite") {
       const result = toggleFavorite(id);

@@ -1,10 +1,19 @@
-import { app, BrowserWindow, ipcMain, shell, net } from "electron";
+import { app, BrowserWindow, ipcMain, shell, net, dialog } from "electron";
 import path from "path";
+import fsSync from "fs";
 import { initializeUpdater, checkForUpdatesManually } from "./updater";
 
 let mainWindow: BrowserWindow | null = null;
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const NEXT_DEV_URL = process.env.NEXT_DEV_URL || "http://localhost:3000";
+
+process.on("uncaughtException", (err) => {
+  console.error("[Main] Uncaught Exception:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[Main] Unhandled Rejection:", reason);
+});
 
 // Enforce single-instance lock
 const gotLock = app.requestSingleInstanceLock();
@@ -16,6 +25,7 @@ if (!gotLock) {
 
 app.on("second-instance", () => {
   if (mainWindow) {
+    if (!mainWindow.isVisible()) mainWindow.show();
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
   }
@@ -64,6 +74,10 @@ async function createWindow() {
     }
   });
 
+  mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription) => {
+    console.error(`[Main] Window failed to load: ${errorDescription} (${errorCode})`);
+  });
+
   // External link navigation security: open in default OS browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("http:") || url.startsWith("https:")) {
@@ -75,14 +89,27 @@ async function createWindow() {
   if (isDev) {
     const isReady = await waitForDevServer(NEXT_DEV_URL);
     if (isReady && mainWindow) {
+      console.log(`[Main] Loading URL: ${NEXT_DEV_URL}`);
       await mainWindow.loadURL(NEXT_DEV_URL);
+      if (mainWindow && !mainWindow.isVisible()) {
+        mainWindow.show();
+        mainWindow.focus();
+      }
     } else if (mainWindow) {
       console.error("[Main] Could not connect to Next.js dev server.");
       await mainWindow.loadURL(NEXT_DEV_URL);
+      if (mainWindow && !mainWindow.isVisible()) {
+        mainWindow.show();
+        mainWindow.focus();
+      }
     }
   } else {
     // Production: Load Next.js production build from localhost server
     await mainWindow.loadURL(NEXT_DEV_URL);
+    if (mainWindow && !mainWindow.isVisible()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
   }
 
   mainWindow.on("closed", () => {
@@ -90,7 +117,7 @@ async function createWindow() {
   });
 }
 
-// Register secure IPC Handlers
+// Register secure Native IPC Handlers
 ipcMain.handle("app:getAppInfo", () => {
   return {
     version: app.getVersion(),
@@ -114,6 +141,24 @@ ipcMain.handle("app:checkForUpdates", async () => {
   } catch (err: any) {
     return { success: false, error: err.message };
   }
+});
+
+// Storage IPC Handlers (Native OS Pickers & System Shell)
+ipcMain.handle("storage:selectFolder", async () => {
+  if (!mainWindow) return { canceled: true, filePaths: [] };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "Select Prompt Library Storage Location",
+    properties: ["openDirectory", "createDirectory"],
+  });
+  return result;
+});
+
+ipcMain.handle("storage:openStorageFolder", async (_, targetPath?: string) => {
+  if (targetPath && typeof targetPath === "string" && fsSync.existsSync(targetPath)) {
+    await shell.openPath(targetPath);
+    return { success: true };
+  }
+  return { success: false, error: "Storage folder path not provided or accessible." };
 });
 
 // App Lifecycle

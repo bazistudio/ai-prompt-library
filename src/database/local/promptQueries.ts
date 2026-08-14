@@ -1,10 +1,12 @@
 import { Database } from 'better-sqlite3';
 import { v7 as uuidv7 } from 'uuid';
+import { savePromptFile } from '../../../electron/fileStorageManager';
 
 export interface CreatePromptPayload {
   title: string;
   description?: string;
   category?: string;
+  categoryId?: string;
   tags?: string[];
   content: string;
 }
@@ -20,11 +22,13 @@ export interface UpdateMetaPayload {
   title?: string;
   description?: string;
   category?: string;
+  categoryId?: string;
   tags?: string[];
 }
 
 export interface GetPromptsOptions {
   category?: string;
+  categoryId?: string;
   search?: string;
   favoriteOnly?: boolean;
 }
@@ -34,7 +38,7 @@ function normalizeTags(tags?: string[]): string[] {
   if (!tags || !Array.isArray(tags)) return [];
   const set = new Set<string>();
   for (const t of tags) {
-    if (typeof t === 'string') {
+    if (typeof t === "string") {
       const clean = t.trim().toLowerCase();
       if (clean) set.add(clean);
     }
@@ -42,22 +46,51 @@ function normalizeTags(tags?: string[]): string[] {
   return Array.from(set);
 }
 
-export function createPromptDb(db: Database, payload: CreatePromptPayload) {
+/** Helper to resolve category ID and display name from payload or DB (Strict: No fallback to "Other") */
+function resolveCategoryInfo(db: Database, inputId?: string, inputName?: string) {
+  if (inputId) {
+    const cat = db.prepare(`SELECT id, name, folder_name FROM categories WHERE id = ?`).get(inputId) as any;
+    if (cat) return { id: cat.id, name: cat.name, folderName: cat.folder_name };
+  }
+  if (inputName) {
+    const cat = db.prepare(`SELECT id, name, folder_name FROM categories WHERE LOWER(name) = LOWER(?)`).get(inputName.trim()) as any;
+    if (cat) return { id: cat.id, name: cat.name, folderName: cat.folder_name };
+  }
+  return null;
+}
+
+export async function createPromptDb(db: Database, payload: CreatePromptPayload, storagePath: string | null) {
+  // Rule 1: No storage path -> DO NOT complete save
+  if (!storagePath || !storagePath.trim()) {
+    return { success: false, error: "Prompt library storage location is not configured." };
+  }
+
+  // Rule 2: Strict category resolution -> No fallback to "Other"
+  const catInfo = resolveCategoryInfo(db, payload.categoryId, payload.category);
+  if (!catInfo || !catInfo.folderName) {
+    return { success: false, error: `Category folder could not be resolved for category "${payload.category || payload.categoryId}".` };
+  }
+
   const promptId = uuidv7();
   const versionId = uuidv7();
   const now = Date.now();
-  const title = (payload.title || 'Untitled Prompt').trim();
-  const description = (payload.description || '').trim();
-  const category = (payload.category || 'Other').trim();
-  const content = (payload.content || '').trim();
+  const title = (payload.title || "Untitled Prompt").trim();
+  const description = (payload.description || "").trim();
+  const content = (payload.content || "").trim();
   const tags = normalizeTags(payload.tags);
+
+  // Rule 3: Write Markdown file to disk BEFORE committing SQLite transaction!
+  const fileRes = await savePromptFile(storagePath, catInfo.folderName, promptId, title, content);
+  if (!fileRes.success) {
+    return { success: false, error: fileRes.error || "Failed to write prompt file to disk." };
+  }
 
   const tx = db.transaction(() => {
     const insertPrompt = db.prepare(`
-      INSERT INTO prompts (id, title, description, category, is_favorite, is_archived, current_version, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 0, 0, 1, ?, ?)
+      INSERT INTO prompts (id, title, description, category, category_id, is_favorite, is_archived, current_version, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 0, 0, 1, ?, ?)
     `);
-    insertPrompt.run(promptId, title, description, category, now, now);
+    insertPrompt.run(promptId, title, description, catInfo.name, catInfo.id, now, now);
 
     const insertVersion = db.prepare(`
       INSERT INTO prompt_versions (id, prompt_id, version_number, content, change_summary, created_at)
@@ -77,14 +110,41 @@ export function createPromptDb(db: Database, payload: CreatePromptPayload) {
   });
 
   tx();
-  console.log(`[DB] Created prompt: ${promptId} (${title}) v1`);
-  return { success: true, promptId };
+  console.log(`[DB] Created prompt: ${promptId} (${title}) v1 at ${fileRes.filePath}`);
+  return { success: true, promptId, categoryId: catInfo.id, categoryName: catInfo.name, categoryFolderName: catInfo.folderName, filePath: fileRes.filePath };
 }
 
-export function addPromptVersionDb(db: Database, payload: AddVersionPayload) {
-  const { promptId, content, changeSummary } = payload;
-  const now = Date.now();
+export async function addPromptVersionDb(db: Database, payload: AddVersionPayload, storagePath: string | null) {
+  // Rule 1: No storage path -> DO NOT complete save
+  if (!storagePath || !storagePath.trim()) {
+    return { success: false, error: "Prompt library storage location is not configured." };
+  }
 
+  const { promptId, content, changeSummary } = payload;
+
+  const prompt = db.prepare(`
+    SELECT p.id, p.title, COALESCE(c.folder_name, p.category) as folder_name
+    FROM prompts p
+    LEFT JOIN categories c ON p.category_id = c.id
+    WHERE p.id = ?
+  `).get(promptId) as { id: string; title: string; folder_name: string | null } | undefined;
+
+  if (!prompt) {
+    return { success: false, error: "Prompt not found." };
+  }
+
+  // Rule 2: Strict category resolution -> No fallback to "Other"
+  if (!prompt.folder_name || !prompt.folder_name.trim()) {
+    return { success: false, error: "Category folder could not be resolved for this prompt." };
+  }
+
+  // Rule 3: Write Markdown file to disk BEFORE committing SQLite transaction!
+  const fileRes = await savePromptFile(storagePath, prompt.folder_name, prompt.id, prompt.title, content || "");
+  if (!fileRes.success) {
+    return { success: false, error: fileRes.error || "Failed to write prompt file to disk." };
+  }
+
+  const now = Date.now();
   const tx = db.transaction(() => {
     const verStmt = db.prepare(`
       SELECT MAX(version_number) as maxVer FROM prompt_versions WHERE prompt_id = ?
@@ -97,7 +157,7 @@ export function addPromptVersionDb(db: Database, payload: AddVersionPayload) {
       VALUES (?, ?, ?, ?, ?, ?)
     `);
     const versionId = uuidv7();
-    insertVer.run(versionId, promptId, nextVer, (content || '').trim(), (changeSummary || `Version v${nextVer}`).trim(), now);
+    insertVer.run(versionId, promptId, nextVer, (content || "").trim(), (changeSummary || `Version v${nextVer}`).trim(), now);
 
     const updatePrompt = db.prepare(`
       UPDATE prompts SET current_version = ?, updated_at = ? WHERE id = ?
@@ -108,12 +168,12 @@ export function addPromptVersionDb(db: Database, payload: AddVersionPayload) {
   });
 
   const nextVer = tx();
-  console.log(`[DB] Created version v${nextVer} for prompt ${promptId}`);
+  console.log(`[DB] Created version v${nextVer} for prompt ${promptId} at ${fileRes.filePath}`);
   return { success: true, versionNumber: nextVer };
 }
 
 export function updatePromptMetaDb(db: Database, payload: UpdateMetaPayload) {
-  const { promptId, title, description, category, tags } = payload;
+  const { promptId, title, description, category, categoryId, tags } = payload;
   const now = Date.now();
 
   const tx = db.transaction(() => {
@@ -121,24 +181,27 @@ export function updatePromptMetaDb(db: Database, payload: UpdateMetaPayload) {
     const params: any[] = [];
 
     if (title !== undefined) {
-      fields.push('title = ?');
+      fields.push("title = ?");
       params.push(title.trim());
     }
     if (description !== undefined) {
-      fields.push('description = ?');
+      fields.push("description = ?");
       params.push(description.trim());
     }
-    if (category !== undefined) {
-      fields.push('category = ?');
-      params.push(category.trim());
+    if (categoryId !== undefined || category !== undefined) {
+      const catInfo = resolveCategoryInfo(db, categoryId, category);
+      fields.push("category = ?");
+      params.push(catInfo.name);
+      fields.push("category_id = ?");
+      params.push(catInfo.id);
     }
 
     if (fields.length > 0) {
-      fields.push('updated_at = ?');
+      fields.push("updated_at = ?");
       params.push(now);
       params.push(promptId);
 
-      const sql = `UPDATE prompts SET ${fields.join(', ')} WHERE id = ?`;
+      const sql = `UPDATE prompts SET ${fields.join(", ")} WHERE id = ?`;
       db.prepare(sql).run(...params);
     }
 
@@ -183,18 +246,28 @@ export function deletePromptDb(db: Database, promptId: string) {
 export function getPromptsDb(db: Database, options: GetPromptsOptions = {}) {
   let query = `
     SELECT 
-      p.id, p.title, p.description, p.category, p.is_favorite, p.is_archived,
+      p.id, p.title, p.description, p.is_favorite, p.is_archived,
       p.current_version, p.created_at, p.updated_at,
+      p.category_id,
+      COALESCE(c.name, p.category) as category,
+      COALESCE(c.folder_name, p.category) as category_folder_name,
       pv.content as current_content
     FROM prompts p
+    LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN prompt_versions pv ON p.id = pv.prompt_id AND p.current_version = pv.version_number
     WHERE p.is_archived = 0
   `;
   const params: any[] = [];
 
-  if (options.category && options.category !== 'All') {
-    query += ` AND p.category = ?`;
-    params.push(options.category);
+  if (options.categoryId) {
+    query += ` AND p.category_id = ?`;
+    params.push(options.categoryId);
+  } else if (options.category && options.category !== "All") {
+    query += ` AND (p.category_id = ? OR LOWER(c.name) = LOWER(?) OR LOWER(p.category) = LOWER(?))`;
+    // Find category ID if exists
+    const cat = db.prepare(`SELECT id FROM categories WHERE LOWER(name) = LOWER(?)`).get(options.category.trim()) as { id: string } | undefined;
+    const catId = cat ? cat.id : "";
+    params.push(catId, options.category.trim(), options.category.trim());
   }
 
   if (options.favoriteOnly) {
@@ -212,19 +285,27 @@ export function getPromptsDb(db: Database, options: GetPromptsOptions = {}) {
   const prompts = db.prepare(query).all(...params) as any[];
 
   const tagStmt = db.prepare(`SELECT tag_name FROM prompt_tags WHERE prompt_id = ?`);
-  return prompts.map(p => {
+  return prompts.map((p) => {
     const tagsRows = tagStmt.all(p.id) as { tag_name: string }[];
     return {
       ...p,
       is_favorite: p.is_favorite === 1,
       is_archived: p.is_archived === 1,
-      tags: tagsRows.map(t => t.tag_name)
+      tags: tagsRows.map((t) => t.tag_name),
     };
   });
 }
 
 export function getPromptByIdDb(db: Database, promptId: string) {
-  const pStmt = db.prepare(`SELECT * FROM prompts WHERE id = ?`);
+  const pStmt = db.prepare(`
+    SELECT 
+      p.*,
+      COALESCE(c.name, p.category) as category,
+      COALESCE(c.folder_name, p.category) as category_folder_name
+    FROM prompts p
+    LEFT JOIN categories c ON p.category_id = c.id
+    WHERE p.id = ?
+  `);
   const prompt = pStmt.get(promptId) as any;
 
   if (!prompt) return null;
@@ -244,7 +325,7 @@ export function getPromptByIdDb(db: Database, promptId: string) {
     ...prompt,
     is_favorite: prompt.is_favorite === 1,
     is_archived: prompt.is_archived === 1,
-    tags: tagsRows.map(t => t.tag_name),
-    versions
+    tags: tagsRows.map((t) => t.tag_name),
+    versions,
   };
 }

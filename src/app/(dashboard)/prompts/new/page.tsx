@@ -1,21 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, Loader2, Tag, Folder, FileText, Sparkles } from "lucide-react";
 import { createPrompt } from "@/services/prompts/promptService";
-
-const CATEGORIES = [
-  "Coding",
-  "Marketing",
-  "Writing",
-  "Business",
-  "YouTube",
-  "AI",
-  "Productivity",
-  "Other",
-];
+import { CategoryItem, fetchCategories } from "@/services/categories/categoryService";
+import { getStoragePath } from "@/services/storage/storageService";
+import { FirstUseStorageModal } from "@/components/storage/FirstUseStorageModal";
 
 export default function CreatePromptPage() {
   const router = useRouter();
@@ -28,17 +20,24 @@ export default function CreatePromptPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) {
-      setError("Please enter a prompt title.");
-      return;
-    }
-    if (!content.trim()) {
-      setError("Please enter prompt instructions or paste your prompt content.");
-      return;
-    }
+  // Dynamic Categories
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
 
+  // First Use Storage Modal
+  const [isFirstUseModalOpen, setIsFirstUseModalOpen] = useState(false);
+
+  useEffect(() => {
+    fetchCategories()
+      .then((cats) => {
+        setCategories(cats);
+        if (cats.length > 0) {
+          setCategory(cats[0].name);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  const executeSavePrompt = async () => {
     setSaving(true);
     setError(null);
 
@@ -67,6 +66,35 @@ export default function CreatePromptPage() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      setError("Please enter a prompt title.");
+      return;
+    }
+    if (!content.trim()) {
+      setError("Please enter prompt instructions or paste your prompt content.");
+      return;
+    }
+
+    try {
+      const storagePath = await getStoragePath();
+      if (!storagePath) {
+        // First-use requirement: prompt user to choose location before saving
+        setIsFirstUseModalOpen(true);
+        return;
+      }
+      await executeSavePrompt();
+    } catch (err: any) {
+      setError(err.message || "Error checking storage path.");
+    }
+  };
+
+  const handleFirstUseStorageSuccess = async () => {
+    setIsFirstUseModalOpen(false);
+    await executeSavePrompt();
+  };
+
   return (
     <div className="max-w-4xl w-full mx-auto px-6 py-8 space-y-6 text-left">
       {/* Top Header Navigation */}
@@ -87,7 +115,7 @@ export default function CreatePromptPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Create New Prompt</h1>
         <p className="text-xs text-muted-foreground">
-          Save a new prompt template into your offline local database (Version 1).
+          Save a new prompt template into your offline local database and prompt library folder.
         </p>
       </div>
 
@@ -126,9 +154,9 @@ export default function CreatePromptPage() {
                 onChange={(e) => setCategory(e.target.value)}
                 className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50 cursor-pointer"
               >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name}
                   </option>
                 ))}
               </select>
@@ -207,6 +235,13 @@ export default function CreatePromptPage() {
           </button>
         </div>
       </form>
+
+      {/* First Use Storage Location Modal */}
+      <FirstUseStorageModal
+        isOpen={isFirstUseModalOpen}
+        onClose={() => setIsFirstUseModalOpen(false)}
+        onSelectSuccess={handleFirstUseStorageSuccess}
+      />
     </div>
   );
 }

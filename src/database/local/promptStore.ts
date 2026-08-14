@@ -1,4 +1,5 @@
 import { getSQLiteDB } from "./db";
+import { getSettingDb, SETTING_KEYS } from "./settingsQueries";
 import {
   createPromptDb,
   addPromptVersionDb,
@@ -13,14 +14,16 @@ import {
   GetPromptsOptions,
 } from "./promptQueries";
 
-export function createPrompt(payload: CreatePromptPayload) {
+export async function createPrompt(payload: CreatePromptPayload) {
   const db = getSQLiteDB();
-  return createPromptDb(db, payload);
+  const storagePath = getSettingDb(db, SETTING_KEYS.PROMPT_LIBRARY_STORAGE_PATH);
+  return createPromptDb(db, payload, storagePath);
 }
 
-export function addPromptVersion(payload: AddVersionPayload) {
+export async function addPromptVersion(payload: AddVersionPayload) {
   const db = getSQLiteDB();
-  return addPromptVersionDb(db, payload);
+  const storagePath = getSettingDb(db, SETTING_KEYS.PROMPT_LIBRARY_STORAGE_PATH);
+  return addPromptVersionDb(db, payload, storagePath);
 }
 
 export function updatePromptMeta(payload: UpdateMetaPayload) {
