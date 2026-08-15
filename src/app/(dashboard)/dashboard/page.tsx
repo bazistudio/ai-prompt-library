@@ -2,9 +2,9 @@ import { getSession } from "@/auth/online/session";
 import { Terminal, Sparkles, Layers, Folder, Database, Cpu, Activity } from "lucide-react";
 
 export default async function DashboardPage() {
-  const session = await getSession();
-
-  const username = session?.username || "Developer";
+  const isElectron = process.env.IS_ELECTRON === "true" || process.env.NEXT_PUBLIC_IS_ELECTRON === "true";
+  const session = isElectron ? null : await getSession();
+  const username = isElectron ? "Local Workspace" : (session?.username || "Developer");
 
   const metrics = [
     {
@@ -47,16 +47,23 @@ export default async function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Welcome back, {username}!
+            Welcome to {username}!
           </h1>
           <p className="text-sm text-muted-foreground">
             Manage your prompts and templates from your central hub.
           </p>
         </div>
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-status-online text-status-online-foreground text-xs font-semibold self-start sm:self-auto shadow-sm shadow-primary/5">
-          <span className="h-1.5 w-1.5 rounded-full bg-status-online-foreground animate-pulse" />
-          Online Mode (MongoDB Active)
-        </div>
+        {isElectron ? (
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-info/10 border border-info/30 text-info text-xs font-semibold self-start sm:self-auto shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-info animate-pulse" />
+            Offline Desktop Mode (SQLite Active)
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-status-online text-status-online-foreground text-xs font-semibold self-start sm:self-auto shadow-sm shadow-primary/5">
+            <span className="h-1.5 w-1.5 rounded-full bg-status-online-foreground animate-pulse" />
+            Online Mode (MongoDB Active)
+          </div>
+        )}
       </div>
 
       {/* Metric Cards Grid */}

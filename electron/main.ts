@@ -18,6 +18,9 @@ import {
   setAppLockedState,
 } from "./securityManager";
 
+process.env.IS_ELECTRON = "true";
+process.env.NEXT_PUBLIC_IS_ELECTRON = "true";
+
 let mainWindow: BrowserWindow | null = null;
 let prodServer: http.Server | null = null;
 const NEXT_DEV_URL = process.env.NEXT_DEV_URL || "http://127.0.0.1:3000";
@@ -161,7 +164,7 @@ async function createWindow() {
 
   if (app.isPackaged === false) {
     console.log("[Main] Development Mode (app.isPackaged === false)");
-    targetUrl = NEXT_DEV_URL;
+    targetUrl = `${NEXT_DEV_URL}/dashboard`;
 
     // Instantly reveal window with dark loading placeholder
     mainWindow.loadURL(
@@ -180,8 +183,9 @@ async function createWindow() {
   } else {
     console.log("[Main] Production Mode (app.isPackaged === true)");
     try {
-      targetUrl = await startProductionServer();
-      await waitForDevServer(targetUrl, 10, 500);
+      const baseUrl = await startProductionServer();
+      targetUrl = `${baseUrl}/dashboard`;
+      await waitForDevServer(baseUrl, 10, 500);
       console.log(`[Main] Loading production window URL: ${targetUrl}`);
       await mainWindow.loadURL(targetUrl);
     } catch (err) {

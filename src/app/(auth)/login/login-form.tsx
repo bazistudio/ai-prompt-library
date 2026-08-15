@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Terminal, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
+import { Terminal, Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { loginSchema } from "@/lib/validation/auth";
 
 export default function LoginForm() {
@@ -13,6 +13,7 @@ export default function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -114,13 +115,22 @@ export default function LoginForm() {
                 </div>
                 <input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2.5 rounded-lg glass-card border border-border text-foreground placeholder-muted-foreground/50 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-all bg-card"
+                  className="block w-full pl-10 pr-10 py-2.5 rounded-lg glass-card border border-border text-foreground placeholder-muted-foreground/50 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-all bg-card"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground/60 hover:text-foreground transition-colors cursor-pointer"
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
               {fieldErrors.password && (
                 <p className="mt-1 text-xs text-danger">{fieldErrors.password[0]}</p>

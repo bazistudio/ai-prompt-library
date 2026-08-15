@@ -5,7 +5,14 @@ import { SESSION_COOKIE_NAME } from "./auth/online/session";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isElectron = process.env.IS_ELECTRON === "true" || process.env.NEXT_PUBLIC_IS_ELECTRON === "true";
 
+  // Electron Desktop Mode: Operating completely offline, bypass web JWT cookie guards
+  if (isElectron) {
+    return NextResponse.next();
+  }
+
+  // Online Web / Demo Mode: Strict JWT Session Cookie Validation
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   let session = null;
 

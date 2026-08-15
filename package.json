@@ -1,6 +1,6 @@
 {
   "name": "ai-prompt-library",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {
@@ -11,8 +11,8 @@
     "lint": "eslint",
     "seed": "node scripts/seed-test-user.mjs",
     "electron:compile": "tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --no-splitting --external electron --external better-sqlite3 --external next",
-    "electron:dev": "concurrently -k \"next dev\" \"cross-env NODE_ENV=development tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --external electron --external better-sqlite3 --external next --watch --onSuccess \\\"npx electron .\\\"\"",
-    "electron:build": "next build && npm run electron:compile",
+    "electron:dev": "concurrently -k \"cross-env IS_ELECTRON=true NEXT_PUBLIC_IS_ELECTRON=true next dev\" \"cross-env NODE_ENV=development IS_ELECTRON=true NEXT_PUBLIC_IS_ELECTRON=true tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --external electron --external better-sqlite3 --external next --watch --onSuccess \\\"npx electron .\\\"\"",
+    "electron:build": "next build && node -e \"const fs=require('fs'); ['cache','dev','diagnostics'].forEach(d => fs.rmSync('.next/' + d, {recursive:true, force:true}))\" && npm run electron:compile",
     "electron:dist": "npm run electron:build && electron-builder --win nsis"
   },
   "dependencies": {
@@ -58,6 +58,9 @@
     "files": [
       "dist-electron/**/*",
       ".next/**/*",
+      "! .next/cache",
+      "! .next/dev",
+      "! .next/diagnostics",
       "public/**/*",
       "build/**/*",
       "package.json"

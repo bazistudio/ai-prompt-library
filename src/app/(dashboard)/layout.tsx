@@ -7,16 +7,25 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getSession();
+  const isElectron = process.env.IS_ELECTRON === "true" || process.env.NEXT_PUBLIC_IS_ELECTRON === "true";
 
-  if (!session) {
-    redirect("/login");
-  }
-
-  const sessionData = {
-    username: session.username || "Developer",
-    email: session.email || "developer@example.com",
+  let sessionData = {
+    username: "Local Workspace",
+    email: "Offline Mode",
   };
+
+  if (!isElectron) {
+    const session = await getSession();
+
+    if (!session) {
+      redirect("/login");
+    }
+
+    sessionData = {
+      username: session.username || "Developer",
+      email: session.email || "developer@example.com",
+    };
+  }
 
   return (
     <AppShell session={sessionData}>

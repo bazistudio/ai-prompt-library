@@ -56,15 +56,26 @@ export function AccountSettings() {
   };
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.user) {
-          setProfile(data.user);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    const isElectron = typeof window !== "undefined" && Boolean(window.electronAPI);
+    if (isElectron) {
+      setProfile({
+        id: "local",
+        username: "Local Workspace",
+        email: "Offline Mode",
+        status: "Active",
+      });
+      setLoading(false);
+    } else {
+      fetch("/api/auth/me")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.user) {
+            setProfile(data.user);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
 
     fetchSecurityStatus();
   }, []);
