@@ -132,7 +132,7 @@ export function SidebarCategory() {
         </button>
 
         {/* Categories List */}
-        <div className="space-y-0.5 max-h-56 overflow-y-auto pr-1">
+        <div className="space-y-0.5">
           {/* All Filter */}
           <Link
             href="/prompts"

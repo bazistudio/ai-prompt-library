@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { SettingsSection } from "./SettingsSection";
 import { SettingRow } from "./SettingRow";
-import { User, Shield, KeyRound, LogOut, Trash2, Laptop, Lock, RefreshCw, Copy, Check, Download } from "lucide-react";
+import { User, Shield, KeyRound, Lock, RefreshCw, Copy, Check, Download, AlertCircle, PlusCircle } from "lucide-react";
 
 import { SecurityStatusData } from "@/types/electron";
 
@@ -20,7 +20,7 @@ export function AccountSettings() {
   const [loading, setLoading] = useState(true);
   const [secStatus, setSecStatus] = useState<SecurityStatusData | null>(null);
 
-  // Change Password Modal State
+  // Password Modal State (Create vs Change)
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -40,6 +40,9 @@ export function AccountSettings() {
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [recoveryLoading, setRecoveryLoading] = useState(false);
+
+  // Guard warning state when trying to turn lock ON without credentials
+  const [guardWarning, setGuardWarning] = useState<string | null>(null);
 
   const fetchSecurityStatus = async () => {
     if (typeof window !== "undefined" && window.electronAPI?.security) {
@@ -66,22 +69,18 @@ export function AccountSettings() {
     fetchSecurityStatus();
   }, []);
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "N/A";
-    try {
-      return new Date(dateString).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-    } catch {
-      return dateString;
-    }
-  };
+  const handleToggleLock = async (targetEnabled: boolean) => {
+    setGuardWarning(null);
 
-  const handleToggleLock = async (enabled: boolean) => {
+    // Guard: Application Lock cannot be enabled until a password or PIN is configured
+    if (targetEnabled && (!secStatus?.hasPassword && !secStatus?.hasPin)) {
+      setGuardWarning("You need to create an application password first before enabling Application Lock.");
+      setShowPasswordModal(true);
+      return;
+    }
+
     if (window.electronAPI?.security) {
-      await window.electronAPI.security.toggleLock(enabled);
+      await window.electronAPI.security.toggleLock(targetEnabled);
       await fetchSecurityStatus();
     }
   };
@@ -97,32 +96,45 @@ export function AccountSettings() {
     }
   };
 
-  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordMsg(null);
 
+    const isCreating = !secStatus?.hasPassword;
+
     if (newPassword.length < 6) {
-      setPasswordMsg({ type: "error", text: "New password must be at least 6 characters." });
+      setPasswordMsg({ type: "error", text: "Password must be at least 6 characters long." });
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordMsg({ type: "error", text: "New passwords do not match." });
+      setPasswordMsg({ type: "error", text: "Passwords do not match." });
+      return;
+    }
+    if (!isCreating && !currentPassword) {
+      setPasswordMsg({ type: "error", text: "Current password is required to change your password." });
       return;
     }
 
     setPasswordLoading(true);
     try {
       if (window.electronAPI?.security) {
-        const res = await window.electronAPI.security.changePassword(currentPassword, newPassword);
+        const res = await window.electronAPI.security.changePassword(
+          isCreating ? undefined : currentPassword,
+          newPassword
+        );
         if (res.success) {
-          setPasswordMsg({ type: "success", text: "Password changed successfully!" });
+          setPasswordMsg({
+            type: "success",
+            text: isCreating ? "Application password created successfully!" : "Password changed successfully!",
+          });
           setCurrentPassword("");
           setNewPassword("");
           setConfirmPassword("");
+          setGuardWarning(null);
           setTimeout(() => setShowPasswordModal(false), 1200);
           await fetchSecurityStatus();
         } else {
-          setPasswordMsg({ type: "error", text: res.error || "Failed to change password." });
+          setPasswordMsg({ type: "error", text: res.error || "Failed to update password." });
         }
       }
     } catch (err: any) {
@@ -190,7 +202,7 @@ export function AccountSettings() {
 
   const handleDownloadKey = () => {
     if (generatedKey) {
-      const warningText = `AI Prompt Library Recovery Key\nGenerated: ${new Date().toISOString()}\n\nRecovery Key: ${generatedKey}\n\nWARNING: Keep this Recovery Key somewhere safe. Anyone with this key may be able to recover access to this application.`;
+      const warningText = `AI Prompt Library Recovery Key\nGenerated: ${new Date().toISOString()}\n\nRecovery Key: ${generatedKey}\n\nWARNING: Keep this Recovery Key somewhere safe. This is your primary recovery method if you forget your password or PIN.`;
       const blob = new Blob([warningText], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -201,12 +213,16 @@ export function AccountSettings() {
     }
   };
 
+  const hasPassword = Boolean(secStatus?.hasPassword);
+  const minLengthValid = newPassword.length >= 6;
+  const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
+
   return (
     <div className="space-y-8 max-w-2xl text-left">
       {/* 1. Account Profile Details */}
       <SettingsSection
         title="Profile Information"
-        description="Your personal account parameters retrieved from local workspace authentication session."
+        description="Personal account parameters retrieved from local workspace authentication session."
       >
         <div className="glass-card p-5 rounded-2xl border border-border flex items-center justify-between mb-2">
           <div className="flex items-center gap-4">
@@ -240,14 +256,57 @@ export function AccountSettings() {
         </SettingRow>
       </SettingsSection>
 
-      {/* 2. Application Lock & Local Security */}
+      {/* 2. Application Security & Lock */}
       <SettingsSection
-        title="Application Security & Lock"
-        description="Protect your offline prompt library, notes, and custom files when starting the application."
+        title="Application Security"
+        description="Configure your application password, application lock, and emergency recovery key."
       >
+        {/* Guard Warning Banner */}
+        {guardWarning && (
+          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-2 mb-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{guardWarning}</span>
+          </div>
+        )}
+
+        {/* Password Section (Create vs Change) */}
+        <SettingRow
+          title="Password"
+          description={
+            hasPassword
+              ? "Application password is configured."
+              : "No application password has been created yet."
+          }
+        >
+          {hasPassword ? (
+            <button
+              onClick={() => {
+                setGuardWarning(null);
+                setShowPasswordModal(true);
+              }}
+              className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <KeyRound className="h-3.5 w-3.5 text-primary" />
+              <span>Change Password</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setGuardWarning(null);
+                setShowPasswordModal(true);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
+            >
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span>Create Password</span>
+            </button>
+          )}
+        </SettingRow>
+
+        {/* Application Lock Section */}
         <SettingRow
           title="Application Lock"
-          description="Require authentication when starting or opening the application."
+          description="Require authentication when starting or reopening the application."
         >
           <div className="flex items-center gap-3">
             <button
@@ -263,15 +322,15 @@ export function AccountSettings() {
               />
             </button>
             <span className="text-xs font-semibold text-foreground">
-              {secStatus?.enabled ? "Enabled" : "Disabled"}
+              {secStatus?.enabled ? "ON" : "OFF"}
             </span>
           </div>
         </SettingRow>
 
         {secStatus?.enabled && (
           <>
-            <SettingRow title="Lock Method" description="Choose whether to unlock using your Account Password or a 6-Digit PIN.">
-              <div className="flex items-center gap-3">
+            <SettingRow title="Lock Method" description="Choose whether to unlock using your Application Password or a 6-Digit PIN.">
+              <div className="flex items-center gap-4">
                 <label className="flex items-center gap-1.5 text-xs text-foreground font-semibold cursor-pointer">
                   <input
                     type="radio"
@@ -310,19 +369,10 @@ export function AccountSettings() {
           </>
         )}
 
-        <SettingRow title="Change Password" description="Update your authentication password hash.">
-          <button
-            onClick={() => setShowPasswordModal(true)}
-            className="px-3 py-1.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
-          >
-            <KeyRound className="h-3.5 w-3.5 text-primary" />
-            <span>Change Password</span>
-          </button>
-        </SettingRow>
-
+        {/* Emergency Recovery Key Section */}
         <SettingRow
-          title="Cryptographic Recovery Key"
-          description="Generate a 24-character recovery key. Required to recover access if you forget your password/PIN."
+          title="Recovery Key"
+          description="Generate a 24-character recovery key. This is your primary recovery method if you forget your password or PIN."
         >
           <div className="flex items-center gap-2">
             <button
@@ -342,31 +392,19 @@ export function AccountSettings() {
         </SettingRow>
       </SettingsSection>
 
-      {/* 3. Session details */}
-      <SettingsSection
-        title="Active Session"
-        description="Information about your currently authenticated session."
-      >
-        <div className="glass-card p-4 rounded-xl border border-border flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Laptop className="h-5 w-5 text-primary" />
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-foreground">Current Desktop Session</span>
-              <span className="text-[10px] text-muted-foreground">Main Process Enforced Security</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-status-online-foreground font-semibold px-2.5 py-1 rounded bg-status-online">
-            <Shield className="h-3.5 w-3.5" />
-            <span>Active</span>
-          </div>
-        </div>
-      </SettingsSection>
-
-      {/* Change Password Modal */}
+      {/* Create / Change Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-border shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-foreground">Change Password</h3>
+          <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-border shadow-2xl space-y-4 text-left">
+            <h3 className="text-base font-bold text-foreground">
+              {hasPassword ? "Change Password" : "Create Application Password"}
+            </h3>
+
+            <p className="text-xs text-muted-foreground">
+              {hasPassword
+                ? "Enter your current password to authorize changing your password."
+                : "Create a password to protect your prompt library and enable application lock."}
+            </p>
 
             {passwordMsg && (
               <div
@@ -380,20 +418,24 @@ export function AccountSettings() {
               </div>
             )}
 
-            <form onSubmit={handleChangePasswordSubmit} className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Current Password</label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
-                />
-              </div>
+            <form onSubmit={handlePasswordSubmit} className="space-y-3">
+              {hasPassword && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Current Password</label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
+                  />
+                </div>
+              )}
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">New Password</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  {hasPassword ? "New Password" : "Password"}
+                </label>
                 <input
                   type="password"
                   value={newPassword}
@@ -404,7 +446,9 @@ export function AccountSettings() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Confirm New Password</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  {hasPassword ? "Confirm New Password" : "Confirm Password"}
+                </label>
                 <input
                   type="password"
                   value={confirmPassword}
@@ -414,20 +458,39 @@ export function AccountSettings() {
                 />
               </div>
 
+              {/* Password Requirements Checklist */}
+              <div className="p-3 rounded-xl bg-secondary/40 border border-border text-[11px] space-y-1">
+                <span className="font-semibold text-muted-foreground block mb-1">Password requirements</span>
+                <div className={`flex items-center gap-1.5 ${minLengthValid ? "text-emerald-500" : "text-muted-foreground"}`}>
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                  <span>Minimum length of 6 characters</span>
+                </div>
+                <div className={`flex items-center gap-1.5 ${passwordsMatch ? "text-emerald-500" : "text-muted-foreground"}`}>
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                  <span>Passwords match</span>
+                </div>
+              </div>
+
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowPasswordModal(false)}
-                  className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={passwordLoading}
-                  className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors cursor-pointer flex items-center gap-1.5"
+                  disabled={passwordLoading || !minLengthValid || !passwordsMatch}
+                  className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  {passwordLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Save Password"}
+                  {passwordLoading ? (
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  ) : hasPassword ? (
+                    "Save Password"
+                  ) : (
+                    "Create Password"
+                  )}
                 </button>
               </div>
             </form>
@@ -438,7 +501,7 @@ export function AccountSettings() {
       {/* PIN Setup Modal */}
       {showPinModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-border shadow-2xl space-y-4">
+          <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-border shadow-2xl space-y-4 text-left">
             <h3 className="text-base font-bold text-foreground">Configure 6-Digit PIN</h3>
 
             {pinMsg && (
@@ -481,7 +544,7 @@ export function AccountSettings() {
                 <button
                   type="button"
                   onClick={() => setShowPinModal(false)}
-                  className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -501,7 +564,7 @@ export function AccountSettings() {
       {/* Recovery Key Modal */}
       {showRecoveryModal && generatedKey && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-primary/30 shadow-2xl space-y-4">
+          <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-primary/30 shadow-2xl space-y-4 text-left">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500">
                 <Shield className="h-5 w-5" />
@@ -509,7 +572,7 @@ export function AccountSettings() {
               <div>
                 <h3 className="text-base font-bold text-foreground">Save Your Recovery Key</h3>
                 <p className="text-xs text-muted-foreground">
-                  Store this key in a secure location. It will only be shown once.
+                  Store this key in a safe offline location. This is your primary recovery method if you forget your password or PIN.
                 </p>
               </div>
             </div>

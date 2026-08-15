@@ -49,6 +49,10 @@ export interface ElectronAPI {
     selectFolder: () => Promise<{ canceled: boolean; filePaths: string[] }>;
     openFolder: (targetPath?: string) => Promise<{ success: boolean; error?: string }>;
   };
+
+  onMenuNavigate?: (callback: (path: string) => void) => () => void;
+  onOpenLibraryFolder?: (callback: () => void) => () => void;
+  onOpenAboutDialog?: (callback: () => void) => () => void;
 }
 
 declare global {

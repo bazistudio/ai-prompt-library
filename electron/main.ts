@@ -4,6 +4,7 @@ import fsSync from "fs";
 import http from "http";
 import next from "next";
 import { initializeUpdater, checkForUpdatesManually } from "./updater";
+import { setupApplicationMenu } from "./menu";
 import {
   getSecurityStatus,
   unlockApplication,
@@ -121,7 +122,7 @@ async function createWindow() {
     minHeight: 600,
     show: true,
     title: "AI Prompt Library",
-    autoHideMenuBar: true,
+    autoHideMenuBar: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -130,6 +131,8 @@ async function createWindow() {
       webSecurity: true,
     },
   });
+
+  setupApplicationMenu(mainWindow);
 
   mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription) => {
     console.error(`[Main] Window failed to load: ${errorDescription} (${errorCode})`);

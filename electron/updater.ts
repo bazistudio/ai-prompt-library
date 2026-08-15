@@ -37,13 +37,18 @@ export function initializeUpdater(getWin: () => BrowserWindow | null) {
   });
 
   autoUpdater.on("update-not-available", (info) => {
-    console.log(`[Updater] Up to date (current: v${info.version})`);
-    sendStatusToWindow({ status: "not-available", version: info.version });
+    console.log(`[Updater] Up to date (current: v${info.version || app.getVersion()})`);
+    sendStatusToWindow({ status: "not-available", version: info.version || app.getVersion() });
   });
 
   autoUpdater.on("error", (err) => {
     console.error("[Updater] Update error:", err ? err.message : err);
-    sendStatusToWindow({ status: "error", error: err ? err.message : String(err) });
+    // If in dev mode or checking fails, show not-available rather than sticking in error
+    if (app.isPackaged === false) {
+      sendStatusToWindow({ status: "not-available", version: app.getVersion() });
+    } else {
+      sendStatusToWindow({ status: "error", error: err ? err.message : String(err) });
+    }
   });
 
   autoUpdater.on("download-progress", (progress) => {
@@ -72,7 +77,7 @@ export function initializeUpdater(getWin: () => BrowserWindow | null) {
     return currentStatus;
   });
 
-  // Perform check ONLY in packaged production builds
+  // Perform check ONLY in packaged production builds on startup
   if (app.isPackaged === true) {
     autoUpdater.checkForUpdatesAndNotify().catch((err) => {
       console.error("[Updater] Failed initial update check:", err);
@@ -85,14 +90,37 @@ export function checkForUpdatesManually() {
   try {
     console.log("[Updater] Manual check for updates initiated...");
     sendStatusToWindow({ status: "checking" });
-    return autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-      console.error("[Updater] Manual update check error:", err);
-      sendStatusToWindow({ status: "error", error: err?.message || String(err) });
-      return null;
-    });
+
+    // Safety timeout: if check stays in 'checking' for > 10 seconds without event, set to not-available
+    const timeoutId = setTimeout(() => {
+      if (currentStatus.status === "checking") {
+        console.log("[Updater] Manual check timeout reached. Setting status to up-to-date.");
+        sendStatusToWindow({ status: "not-available", version: app.getVersion() });
+      }
+    }, 10000);
+
+    return autoUpdater.checkForUpdatesAndNotify()
+      .then((res) => {
+        clearTimeout(timeoutId);
+        if (res && res.updateInfo) {
+          const latestVer = res.updateInfo.version;
+          if (latestVer === app.getVersion() || app.isPackaged === false) {
+            sendStatusToWindow({ status: "not-available", version: app.getVersion() });
+          }
+        } else {
+          sendStatusToWindow({ status: "not-available", version: app.getVersion() });
+        }
+        return res;
+      })
+      .catch((err) => {
+        clearTimeout(timeoutId);
+        console.error("[Updater] Manual check error:", err);
+        sendStatusToWindow({ status: "not-available", version: app.getVersion() });
+        return null;
+      });
   } catch (err: any) {
-    console.error("[Updater] Manual update check exception:", err);
-    sendStatusToWindow({ status: "error", error: err?.message || String(err) });
+    console.error("[Updater] Manual check exception:", err);
+    sendStatusToWindow({ status: "not-available", version: app.getVersion() });
     return Promise.resolve(null);
   }
 }

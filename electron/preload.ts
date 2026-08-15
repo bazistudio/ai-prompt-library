@@ -33,9 +33,26 @@ const api = {
     openFolder: (targetPath?: string) => ipcRenderer.invoke("storage:openStorageFolder", targetPath),
   },
 
-  db: {
-    selectFolder: () => ipcRenderer.invoke("storage:selectFolder"),
-    openFolder: (targetPath?: string) => ipcRenderer.invoke("storage:openStorageFolder", targetPath),
+  onMenuNavigate: (callback: (path: string) => void) => {
+    const sub = (_event: any, path: string) => callback(path);
+    ipcRenderer.on("menu:navigate", sub);
+    return () => {
+      ipcRenderer.removeListener("menu:navigate", sub);
+    };
+  },
+  onOpenLibraryFolder: (callback: () => void) => {
+    const sub = () => callback();
+    ipcRenderer.on("menu:openLibraryFolder", sub);
+    return () => {
+      ipcRenderer.removeListener("menu:openLibraryFolder", sub);
+    };
+  },
+  onOpenAboutDialog: (callback: () => void) => {
+    const sub = () => callback();
+    ipcRenderer.on("menu:openAboutDialog", sub);
+    return () => {
+      ipcRenderer.removeListener("menu:openAboutDialog", sub);
+    };
   },
 };
 
