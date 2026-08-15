@@ -190,10 +190,12 @@ export function updatePromptMetaDb(db: Database, payload: UpdateMetaPayload) {
     }
     if (categoryId !== undefined || category !== undefined) {
       const catInfo = resolveCategoryInfo(db, categoryId, category);
-      fields.push("category = ?");
-      params.push(catInfo.name);
-      fields.push("category_id = ?");
-      params.push(catInfo.id);
+      if (catInfo) {
+        fields.push("category = ?");
+        params.push(catInfo.name);
+        fields.push("category_id = ?");
+        params.push(catInfo.id);
+      }
     }
 
     if (fields.length > 0) {

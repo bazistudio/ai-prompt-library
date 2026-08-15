@@ -1,16 +1,17 @@
 {
   "name": "ai-prompt-library",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "next dev",
+    "dev:all": "npm run electron:dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "seed": "node scripts/seed-test-user.mjs",
-    "electron:compile": "tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --no-splitting --external electron --external better-sqlite3",
-    "electron:dev": "concurrently -k \"next dev\" \"cross-env NODE_ENV=development tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --external electron --external better-sqlite3 --watch --onSuccess \\\"npx electron .\\\"\"",
+    "electron:compile": "tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --no-splitting --external electron --external better-sqlite3 --external next",
+    "electron:dev": "concurrently -k \"next dev\" \"cross-env NODE_ENV=development tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --external electron --external better-sqlite3 --external next --watch --onSuccess \\\"npx electron .\\\"\"",
     "electron:build": "next build && npm run electron:compile",
     "electron:dist": "npm run electron:build && electron-builder --win nsis"
   },
@@ -47,6 +48,7 @@
     "typescript": "^5"
   },
   "build": {
+    "npmRebuild": false,
     "appId": "com.bazistudio.ai-prompt-library",
     "productName": "AI Prompt Library",
     "copyright": "Copyright © 2026 BaziStudio",
@@ -64,7 +66,9 @@
       "target": [
         "nsis"
       ],
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "verifyUpdateCodeSignature": false,
+      "sign": null
     },
     "nsis": {
       "oneClick": false,

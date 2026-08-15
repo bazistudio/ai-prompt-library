@@ -30,6 +30,38 @@ export async function pathExists(targetPath: string): Promise<boolean> {
   }
 }
 
+/** Ensure library manifest identity file exists in storage root */
+export async function ensureLibraryManifest(storagePath: string | null): Promise<void> {
+  if (!storagePath || !storagePath.trim()) return;
+
+  const root = path.resolve(storagePath);
+  if (!(await pathExists(root))) {
+    await fs.mkdir(root, { recursive: true });
+  }
+
+  const manifestDir = path.join(root, ".ai-prompt-library");
+  if (!(await pathExists(manifestDir))) {
+    await fs.mkdir(manifestDir, { recursive: true });
+  }
+
+  const manifestFile = path.join(manifestDir, "library.json");
+  if (!(await pathExists(manifestFile))) {
+    const manifestContent = JSON.stringify(
+      {
+        libraryId: `lib_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`,
+        libraryName: "AI Prompt Library",
+        formatVersion: "1.0.0",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      null,
+      2
+    );
+    await fs.writeFile(manifestFile, manifestContent, "utf-8");
+    console.log(`[FileStorageManager] Created Library Manifest at: ${manifestFile}`);
+  }
+}
+
 /** Ensure category subfolders exist in storage root */
 export async function ensureCategoryFolders(
   storagePath: string | null,
@@ -41,6 +73,8 @@ export async function ensureCategoryFolders(
   if (!(await pathExists(root))) {
     await fs.mkdir(root, { recursive: true });
   }
+
+  await ensureLibraryManifest(storagePath);
 
   for (const cat of categories) {
     if (!cat.folder_name) continue;

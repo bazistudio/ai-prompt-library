@@ -1,0 +1,4 @@
+provider: github
+owner: bazistudio
+repo: ai-prompt-library
+updaterCacheDirName: ai-prompt-library-updater

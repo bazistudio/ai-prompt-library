@@ -24,4 +24,13 @@ export function setSettingDb(db: Database, key: string, value: string | null): {
 
 export const SETTING_KEYS = {
   PROMPT_LIBRARY_STORAGE_PATH: "promptLibraryStoragePath",
+  APP_LOCK_ENABLED: "appLockEnabled",
+  APP_LOCK_METHOD: "appLockMethod",
+  APP_LOCK_PASSWORD_HASH: "appLockPasswordHash",
+  APP_LOCK_PIN_HASH: "appLockPinHash",
+  APP_LOCK_RECOVERY_KEY_HASH: "appLockRecoveryKeyHash",
+  APP_LOCK_SECURITY_QUESTIONS: "appLockSecurityQuestions",
+  REQUIRE_LOCK_ON_STARTUP: "requireLockOnStartup",
+  APP_LOCK_FAILED_ATTEMPTS: "appLockFailedAttempts",
+  APP_LOCK_LOCKOUT_UNTIL: "appLockLockoutUntil",
 };

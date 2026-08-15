@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
+import { UpdateBanner } from "./UpdateBanner";
+import { LockScreen } from "@/components/security/LockScreen";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -22,6 +24,12 @@ export function AppShell({ children, session }: AppShellProps) {
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
+      {/* Fullscreen Application Lock Overlay */}
+      <LockScreen />
+
+      {/* Background Update Notification Banner */}
+      <UpdateBanner />
+
       {/* Top Navbar */}
       <Navbar
         onMenuToggle={() => setMobileSidebarOpen(true)}
