@@ -14,6 +14,7 @@ export interface SecurityStatus {
   isLocked: boolean;
   hasPassword: boolean;
   hasPin: boolean;
+  hasCredential: boolean;
   hasRecoveryKey: boolean;
   hasSecurityQuestions: boolean;
   lockoutRemainingSeconds: number;
@@ -65,6 +66,17 @@ function setSecuritySetting(key: string, value: string | null): void {
     store[key] = value;
   }
   writeSecurityStore(store);
+}
+
+/** Check if user has configured any lock credential (password or PIN) */
+export function hasLockCredential(): boolean {
+  try {
+    const hasPassword = Boolean(getSecuritySetting(SETTING_KEYS.APP_LOCK_PASSWORD_HASH));
+    const hasPin = Boolean(getSecuritySetting(SETTING_KEYS.APP_LOCK_PIN_HASH));
+    return hasPassword || hasPin;
+  } catch {
+    return false;
+  }
 }
 
 /** Generate a cryptographically secure 24-character recovery key formatted as XXXX-XXXX-XXXX-XXXX-XXXX-XXXX */
@@ -127,10 +139,7 @@ function resetFailedAttempts(): void {
 
 export function isAppLocked(): boolean {
   try {
-    const enabled = getSecuritySetting(SETTING_KEYS.APP_LOCK_ENABLED) === "1";
-    const requireStartup = getSecuritySetting(SETTING_KEYS.REQUIRE_LOCK_ON_STARTUP) !== "0";
-
-    if (!enabled || !requireStartup) {
+    if (!hasLockCredential()) {
       return false;
     }
 
@@ -144,6 +153,70 @@ export function setAppLockedState(locked: boolean): void {
   isLockedState = locked;
 }
 
+export function lockApp(): { success: boolean; error?: string } {
+  if (!hasLockCredential()) {
+    return {
+      success: false,
+      error: "No lock code set. Please configure a PIN or Password in Settings first.",
+    };
+  }
+
+  isLockedState = true;
+  return { success: true };
+}
+
+async function verifyCredential(credential: string): Promise<{ success: boolean; error?: string }> {
+  const hasPassword = Boolean(getSecuritySetting(SETTING_KEYS.APP_LOCK_PASSWORD_HASH));
+  const hasPin = Boolean(getSecuritySetting(SETTING_KEYS.APP_LOCK_PIN_HASH));
+
+  if (!hasPassword && !hasPin) {
+    return { success: false, error: "No lock credentials set." };
+  }
+
+  let isValid = false;
+
+  if (hasPin) {
+    const pinHash = getSecuritySetting(SETTING_KEYS.APP_LOCK_PIN_HASH);
+    if (pinHash && await bcrypt.compare(credential, pinHash)) {
+      isValid = true;
+    }
+  }
+
+  if (!isValid && hasPassword) {
+    const passwordHash = getSecuritySetting(SETTING_KEYS.APP_LOCK_PASSWORD_HASH);
+    if (passwordHash && await bcrypt.compare(credential, passwordHash)) {
+      isValid = true;
+    }
+  }
+
+  if (isValid) {
+    return { success: true };
+  } else {
+    if (hasPin && !hasPassword) {
+      return { success: false, error: "Incorrect PIN." };
+    } else if (hasPassword && !hasPin) {
+      return { success: false, error: "Incorrect password." };
+    } else {
+      return { success: false, error: "Incorrect PIN or password." };
+    }
+  }
+}
+
+export async function removeLockCredentials(credential: string): Promise<{ success: boolean; error?: string }> {
+  const verification = await verifyCredential(credential);
+  if (!verification.success) {
+    return verification;
+  }
+
+  setSecuritySetting(SETTING_KEYS.APP_LOCK_PASSWORD_HASH, null);
+  setSecuritySetting(SETTING_KEYS.APP_LOCK_PIN_HASH, null);
+  setSecuritySetting(SETTING_KEYS.APP_LOCK_ENABLED, "0");
+  isLockedState = false;
+  resetFailedAttempts();
+  return { success: true };
+}
+
+
 export function getSecurityStatus(): SecurityStatus {
   try {
     const enabled = getSecuritySetting(SETTING_KEYS.APP_LOCK_ENABLED) === "1";
@@ -151,6 +224,7 @@ export function getSecurityStatus(): SecurityStatus {
     const requireStartup = getSecuritySetting(SETTING_KEYS.REQUIRE_LOCK_ON_STARTUP) !== "0";
     const hasPassword = Boolean(getSecuritySetting(SETTING_KEYS.APP_LOCK_PASSWORD_HASH));
     const hasPin = Boolean(getSecuritySetting(SETTING_KEYS.APP_LOCK_PIN_HASH));
+    const hasCredential = hasPassword || hasPin;
     const hasRecoveryKey = Boolean(getSecuritySetting(SETTING_KEYS.APP_LOCK_RECOVERY_KEY_HASH));
     const hasSecurityQuestions = Boolean(getSecuritySetting(SETTING_KEYS.APP_LOCK_SECURITY_QUESTIONS));
 
@@ -161,6 +235,7 @@ export function getSecurityStatus(): SecurityStatus {
       isLocked: isAppLocked(),
       hasPassword,
       hasPin,
+      hasCredential,
       hasRecoveryKey,
       hasSecurityQuestions,
       lockoutRemainingSeconds: getLockoutRemainingSeconds(),
@@ -171,8 +246,9 @@ export function getSecurityStatus(): SecurityStatus {
       method: "password",
       requireStartup: true,
       isLocked: false,
-      hasPassword: true,
+      hasPassword: false,
       hasPin: false,
+      hasCredential: false,
       hasRecoveryKey: false,
       hasSecurityQuestions: false,
       lockoutRemainingSeconds: 0,
@@ -325,10 +401,14 @@ export async function recoverAndResetCredentials(
   return { success: true };
 }
 
-export function toggleAppLock(enabled: boolean): { success: boolean } {
-  setSecuritySetting(SETTING_KEYS.APP_LOCK_ENABLED, enabled ? "1" : "0");
-  if (!enabled) {
-    isLockedState = false;
+export function toggleAppLock(enabled: boolean): { success: boolean; error?: string } {
+  if (enabled) {
+    if (!hasLockCredential()) {
+      return { success: false, error: "Please configure a PIN or Password first." };
+    }
+    setSecuritySetting(SETTING_KEYS.APP_LOCK_ENABLED, "1");
+  } else {
+    setSecuritySetting(SETTING_KEYS.APP_LOCK_ENABLED, "0");
   }
   return { success: true };
 }

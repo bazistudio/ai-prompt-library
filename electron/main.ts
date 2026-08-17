@@ -14,6 +14,8 @@ import {
   recoverAndResetCredentials,
   toggleAppLock,
   setLockMethod,
+  lockApp,
+  removeLockCredentials,
   isAppLocked,
   setAppLockedState,
 } from "./securityManager";
@@ -210,6 +212,8 @@ function protectedHandle(channel: string, handler: (...args: any[]) => any) {
 
 // Security IPC Handlers (Main Process Security Boundary)
 ipcMain.handle("security:getStatus", () => getSecurityStatus());
+ipcMain.handle("security:lockApp", () => lockApp());
+ipcMain.handle("security:removeCredentials", (_, credential: string) => removeLockCredentials(credential));
 ipcMain.handle("security:unlock", (_, input: string) => unlockApplication(input));
 ipcMain.handle("security:changePassword", (_, currentPassword?: string, newPassword?: string) => setupOrUpdatePassword(currentPassword, newPassword));
 ipcMain.handle("security:setupPin", (_, password: string, pin: string) => setupOrUpdatePin(password, pin));

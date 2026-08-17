@@ -13,6 +13,7 @@ export interface SecurityStatusData {
   isLocked: boolean;
   hasPassword: boolean;
   hasPin: boolean;
+  hasCredential: boolean;
   hasRecoveryKey: boolean;
   hasSecurityQuestions: boolean;
   lockoutRemainingSeconds: number;
@@ -31,12 +32,14 @@ export interface ElectronAPI {
 
   security?: {
     getStatus: () => Promise<SecurityStatusData>;
+    lockApp: () => Promise<{ success: boolean; error?: string }>;
+    removeCredentials: (credential: string) => Promise<{ success: boolean; error?: string }>;
     unlock: (input: string) => Promise<{ success: boolean; error?: string; lockoutRemaining?: number }>;
     changePassword: (currentPassword?: string, newPassword?: string) => Promise<{ success: boolean; error?: string }>;
     setupPin: (password: string, pin: string) => Promise<{ success: boolean; error?: string }>;
     generateRecoveryKey: () => Promise<{ success: boolean; recoveryKey?: string; error?: string }>;
     recoverAccess: (recoveryInput: string, newPassword: string, method: "key" | "questions") => Promise<{ success: boolean; error?: string }>;
-    toggleLock: (enabled: boolean) => Promise<{ success: boolean }>;
+    toggleLock: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
     setLockMethod: (method: "password" | "pin") => Promise<{ success: boolean }>;
   };
 

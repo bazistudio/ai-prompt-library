@@ -19,6 +19,8 @@ const api = {
 
   security: {
     getStatus: () => ipcRenderer.invoke("security:getStatus"),
+    lockApp: () => ipcRenderer.invoke("security:lockApp"),
+    removeCredentials: (credential: string) => ipcRenderer.invoke("security:removeCredentials", credential),
     unlock: (input: string) => ipcRenderer.invoke("security:unlock", input),
     changePassword: (currentPassword?: string, newPassword?: string) => ipcRenderer.invoke("security:changePassword", currentPassword, newPassword),
     setupPin: (password: string, pin: string) => ipcRenderer.invoke("security:setupPin", password, pin),
