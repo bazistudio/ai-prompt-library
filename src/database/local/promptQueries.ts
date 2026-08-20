@@ -7,8 +7,11 @@ export interface CreatePromptPayload {
   description?: string;
   category?: string;
   categoryId?: string;
+  projectId?: string;
   tags?: string[];
   content: string;
+  textDirection?: "ltr" | "rtl" | "auto";
+  language?: string;
 }
 
 export interface AddVersionPayload {
@@ -23,12 +26,16 @@ export interface UpdateMetaPayload {
   description?: string;
   category?: string;
   categoryId?: string;
+  projectId?: string;
   tags?: string[];
+  textDirection?: "ltr" | "rtl" | "auto";
+  language?: string;
 }
 
 export interface GetPromptsOptions {
   category?: string;
   categoryId?: string;
+  projectId?: string;
   search?: string;
   favoriteOnly?: boolean;
 }
@@ -87,10 +94,13 @@ export async function createPromptDb(db: Database, payload: CreatePromptPayload,
 
   const tx = db.transaction(() => {
     const insertPrompt = db.prepare(`
-      INSERT INTO prompts (id, title, description, category, category_id, is_favorite, is_archived, current_version, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, 0, 0, 1, ?, ?)
+      INSERT INTO prompts (id, title, description, category, category_id, project_id, is_favorite, is_archived, current_version, text_direction, language, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 0, 0, 1, ?, ?, ?, ?)
     `);
-    insertPrompt.run(promptId, title, description, catInfo.name, catInfo.id, now, now);
+    const direction = payload.textDirection || "auto";
+    const lang = payload.language || "auto";
+    const projId = payload.projectId || "proj_default";
+    insertPrompt.run(promptId, title, description, catInfo.name, catInfo.id, projId, direction, lang, now, now);
 
     const insertVersion = db.prepare(`
       INSERT INTO prompt_versions (id, prompt_id, version_number, content, change_summary, created_at)
@@ -173,7 +183,7 @@ export async function addPromptVersionDb(db: Database, payload: AddVersionPayloa
 }
 
 export function updatePromptMetaDb(db: Database, payload: UpdateMetaPayload) {
-  const { promptId, title, description, category, categoryId, tags } = payload;
+  const { promptId, title, description, category, categoryId, projectId, tags, textDirection, language } = payload;
   const now = Date.now();
 
   const tx = db.transaction(() => {
@@ -187,6 +197,18 @@ export function updatePromptMetaDb(db: Database, payload: UpdateMetaPayload) {
     if (description !== undefined) {
       fields.push("description = ?");
       params.push(description.trim());
+    }
+    if (projectId !== undefined) {
+      fields.push("project_id = ?");
+      params.push(projectId);
+    }
+    if (textDirection !== undefined) {
+      fields.push("text_direction = ?");
+      params.push(textDirection);
+    }
+    if (language !== undefined) {
+      fields.push("language = ?");
+      params.push(language);
     }
     if (categoryId !== undefined || category !== undefined) {
       const catInfo = resolveCategoryInfo(db, categoryId, category);
@@ -251,15 +273,26 @@ export function getPromptsDb(db: Database, options: GetPromptsOptions = {}) {
       p.id, p.title, p.description, p.is_favorite, p.is_archived,
       p.current_version, p.created_at, p.updated_at,
       p.category_id,
+      p.project_id,
+      p.text_direction,
+      p.language,
       COALESCE(c.name, p.category) as category,
       COALESCE(c.folder_name, p.category) as category_folder_name,
+      COALESCE(pr.name, 'General Workspace') as project_name,
+      COALESCE(pr.color, '#6366f1') as project_color,
       pv.content as current_content
     FROM prompts p
     LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN projects pr ON p.project_id = pr.id
     LEFT JOIN prompt_versions pv ON p.id = pv.prompt_id AND p.current_version = pv.version_number
     WHERE p.is_archived = 0
   `;
   const params: any[] = [];
+
+  if (options.projectId) {
+    query += ` AND p.project_id = ?`;
+    params.push(options.projectId);
+  }
 
   if (options.categoryId) {
     query += ` AND p.category_id = ?`;
@@ -303,9 +336,12 @@ export function getPromptByIdDb(db: Database, promptId: string) {
     SELECT 
       p.*,
       COALESCE(c.name, p.category) as category,
-      COALESCE(c.folder_name, p.category) as category_folder_name
+      COALESCE(c.folder_name, p.category) as category_folder_name,
+      COALESCE(pr.name, 'General Workspace') as project_name,
+      COALESCE(pr.color, '#6366f1') as project_color
     FROM prompts p
     LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN projects pr ON p.project_id = pr.id
     WHERE p.id = ?
   `);
   const prompt = pStmt.get(promptId) as any;
@@ -329,5 +365,34 @@ export function getPromptByIdDb(db: Database, promptId: string) {
     is_archived: prompt.is_archived === 1,
     tags: tagsRows.map((t) => t.tag_name),
     versions,
+  };
+}
+
+export function getPromptStatsDb(db: Database) {
+  const totalPrompts = (db.prepare(`SELECT COUNT(*) as count FROM prompts WHERE is_archived = 0`).get() as any)?.count || 0;
+  const favoritePrompts = (db.prepare(`SELECT COUNT(*) as count FROM prompts WHERE is_favorite = 1 AND is_archived = 0`).get() as any)?.count || 0;
+  const totalCategories = (db.prepare(`SELECT COUNT(*) as count FROM categories`).get() as any)?.count || 0;
+  const totalVersions = (db.prepare(`SELECT COUNT(*) as count FROM prompt_versions`).get() as any)?.count || 0;
+
+  const recentPrompts = db.prepare(`
+    SELECT 
+      p.id, p.title, p.description, p.current_version, p.is_favorite, p.updated_at,
+      COALESCE(c.name, p.category) as category
+    FROM prompts p
+    LEFT JOIN categories c ON p.category_id = c.id
+    WHERE p.is_archived = 0
+    ORDER BY p.updated_at DESC
+    LIMIT 5
+  `).all() as any[];
+
+  return {
+    totalPrompts,
+    favoritePrompts,
+    totalCategories,
+    totalVersions,
+    recentPrompts: recentPrompts.map((p) => ({
+      ...p,
+      is_favorite: p.is_favorite === 1,
+    })),
   };
 }

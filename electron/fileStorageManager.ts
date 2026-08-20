@@ -1,5 +1,4 @@
 import fs from "fs/promises";
-import fsSync from "fs";
 import path from "path";
 
 const RESERVED_WINDOWS_NAMES = new Set([

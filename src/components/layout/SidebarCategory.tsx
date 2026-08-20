@@ -10,10 +10,12 @@ import {
   Folder,
   Plus,
   Edit2,
-  FolderPlus,
+  Workflow,
+  Swords,
 } from "lucide-react";
 import { CategoryItem, fetchCategories } from "@/services/categories/categoryService";
 import { CategoryModal } from "@/components/categories/CategoryModal";
+import { WorkspaceSwitcher } from "@/components/workspaces/WorkspaceSwitcher";
 
 export function SidebarCategory() {
   const pathname = usePathname();
@@ -23,7 +25,6 @@ export function SidebarCategory() {
   const isFavorites = searchParams.get("favorite") === "true";
 
   const [categories, setCategories] = useState<CategoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,8 +36,6 @@ export function SidebarCategory() {
       setCategories(cats);
     } catch (err) {
       console.error("Failed to load categories:", err);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -65,11 +64,16 @@ export function SidebarCategory() {
   };
 
   return (
-    <div className="flex flex-col gap-6 py-2 px-1 text-left">
-      {/* 1. DASHBOARD */}
+    <div className="flex flex-col gap-5 py-1 px-1 text-left">
+      {/* 0. WORKSPACE / PROJECT SWITCHER */}
+      <div className="px-1">
+        <WorkspaceSwitcher />
+      </div>
+
+      {/* 1. CORE NAVIGATION */}
       <div className="space-y-1">
         <span className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-          Dashboard
+          Core Studio
         </span>
         <Link
           href="/dashboard"
@@ -82,13 +86,6 @@ export function SidebarCategory() {
           <LayoutDashboard className="h-4 w-4" />
           <span>Dashboard</span>
         </Link>
-      </div>
-
-      {/* 2. LIBRARY */}
-      <div className="space-y-1">
-        <span className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-          Library
-        </span>
         <Link
           href="/prompts"
           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
@@ -99,6 +96,34 @@ export function SidebarCategory() {
         >
           <Library className="h-4 w-4" />
           <span>My Library</span>
+        </Link>
+        <Link
+          href="/workflows"
+          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+            pathname.startsWith("/workflows")
+              ? "bg-primary text-primary-foreground font-bold shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          }`}
+        >
+          <Workflow className="h-4 w-4" />
+          <span className="flex-1">Workflows</span>
+          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-background/20 font-bold">
+            Chains
+          </span>
+        </Link>
+        <Link
+          href="/arena"
+          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+            pathname === "/arena"
+              ? "bg-primary text-primary-foreground font-bold shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          }`}
+        >
+          <Swords className="h-4 w-4" />
+          <span className="flex-1">Model Arena</span>
+          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-background/20 font-bold">
+            Bench
+          </span>
         </Link>
         <Link
           href="/prompts?favorite=true"

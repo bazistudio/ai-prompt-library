@@ -11,6 +11,11 @@ import {
   Loader2,
   FolderSync,
   X,
+  Database,
+  Sparkles,
+  Download,
+  RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 import {
   getStoragePath,
@@ -20,11 +25,36 @@ import {
   openStorageFolder,
 } from "@/services/storage/storageService";
 
+interface DatabaseHealthData {
+  dbPath: string;
+  dbSizeBytes: number;
+  walSizeBytes: number;
+  totalSizeBytes: number;
+  integrity: string;
+  counts: {
+    prompts: number;
+    versions: number;
+    categories: number;
+    workspaces: number;
+    auditLogs: number;
+  };
+  lastCheckTimestamp: string;
+}
+
 export function StorageSettings() {
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Database Health State
+  const [dbHealth, setDbHealth] = useState<DatabaseHealthData | null>(null);
+  const [dbHealthLoading, setDbHealthLoading] = useState(true);
+  const [optimizingDb, setOptimizingDb] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   // Relocation Modal State
   const [pendingNewPath, setPendingNewPath] = useState<string | null>(null);
@@ -40,9 +70,69 @@ export function StorageSettings() {
     }
   };
 
+  const loadDbHealth = async () => {
+    setDbHealthLoading(true);
+    try {
+      const res = await fetch("/api/database/maintenance");
+      const data = await res.json();
+      if (data.success && data.health) {
+        setDbHealth(data.health);
+      }
+    } catch (err) {
+      console.error("Failed to load database health:", err);
+    } finally {
+      setDbHealthLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadStorage();
+    loadDbHealth();
   }, []);
+
+  const handleVacuum = async () => {
+    setOptimizingDb(true);
+    setMaintenanceMessage(null);
+    try {
+      const res = await fetch("/api/database/maintenance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "vacuum" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMaintenanceMessage({
+          type: "success",
+          text: `Database optimized! Freed ${formatBytes(data.result?.freedBytes || 0)} of disk space.`,
+        });
+        if (data.result?.afterStats) {
+          setDbHealth(data.result.afterStats);
+        } else {
+          loadDbHealth();
+        }
+      } else {
+        setMaintenanceMessage({
+          type: "error",
+          text: data.error || "Failed to optimize database.",
+        });
+      }
+    } catch (err: any) {
+      setMaintenanceMessage({
+        type: "error",
+        text: err.message || "Failed to optimize database.",
+      });
+    } finally {
+      setOptimizingDb(false);
+    }
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
 
   const handleSelectOrChange = async () => {
     setActionLoading(true);
@@ -203,6 +293,120 @@ export function StorageSettings() {
               <FolderOpen className="h-4 w-4" />
               <span>Open Storage Folder</span>
             </button>
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* 2. SQLite Database Health, Maintenance & Raw Backup */}
+      <SettingsSection
+        title="Database Health & Maintenance"
+        description="Monitor local SQLite database performance, defragment indexes, reclaim unused storage, and download raw database snapshots."
+      >
+        <div className="glass-card p-6 rounded-2xl border border-border space-y-5 bg-card">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-secondary border border-border flex items-center justify-center text-foreground">
+                <Database className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Local SQLite Engine</h3>
+                <span className="text-[10px] text-muted-foreground">
+                  WAL Journal Mode • Zero Latency
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={loadDbHealth}
+                disabled={dbHealthLoading}
+                className="p-2 rounded-lg border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Refresh database stats"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${dbHealthLoading ? "animate-spin" : ""}`} />
+              </button>
+
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-status-online text-status-online-foreground flex items-center gap-1">
+                <ShieldCheck className="h-3 w-3" />
+                {dbHealth?.integrity === "ok" ? "Integrity Passed" : "Healthy"}
+              </span>
+            </div>
+          </div>
+
+          {maintenanceMessage && (
+            <div
+              className={`p-3 rounded-xl border text-xs font-semibold ${
+                maintenanceMessage.type === "success"
+                  ? "bg-success/10 border-success/20 text-success"
+                  : "bg-danger/10 border-danger/20 text-danger"
+              }`}
+            >
+              {maintenanceMessage.text}
+            </div>
+          )}
+
+          {/* Metrics Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3 rounded-xl bg-background border border-border">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                Database Size
+              </div>
+              <div className="text-sm font-bold text-foreground mt-1">
+                {dbHealth ? formatBytes(dbHealth.dbSizeBytes) : "--"}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-background border border-border">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                WAL Buffer
+              </div>
+              <div className="text-sm font-bold text-foreground mt-1">
+                {dbHealth ? formatBytes(dbHealth.walSizeBytes) : "--"}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-background border border-border">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                Total Prompts
+              </div>
+              <div className="text-sm font-bold text-foreground mt-1">
+                {dbHealth ? dbHealth.counts.prompts : "--"}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-background border border-border">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                Audit Logs
+              </div>
+              <div className="text-sm font-bold text-foreground mt-1">
+                {dbHealth ? dbHealth.counts.auditLogs : "--"}
+              </div>
+            </div>
+          </div>
+
+          {/* Database Actions */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-border/40">
+            <button
+              onClick={handleVacuum}
+              disabled={optimizingDb}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary cursor-pointer disabled:opacity-50"
+            >
+              {optimizingDb ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              <span>Optimize & Reclaim Space (VACUUM)</span>
+            </button>
+
+            <a
+              href="/api/database/maintenance?download=true"
+              download
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground font-semibold text-xs transition-colors cursor-pointer"
+            >
+              <Download className="h-4 w-4" />
+              <span>Download Raw Database (.db)</span>
+            </a>
           </div>
         </div>
       </SettingsSection>

@@ -1,4 +1,4 @@
-import { Database } from 'better-sqlite3';
+import type { Database } from 'better-sqlite3';
 
 export function initializeSchema(db: Database) {
   // 1. Core Data Entities & System Health
@@ -131,11 +131,25 @@ export function initializeSchema(db: Database) {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_prompt_versions_prompt_id ON prompt_versions(prompt_id);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_prompt_tags_prompt_id ON prompt_tags(prompt_id);`);
 
-  // 5. App Settings & Dynamic Categories
+  // 5. App Settings, Dynamic Categories & Workspaces/Projects
   db.exec(`
     CREATE TABLE IF NOT EXISTS app_settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      color TEXT NOT NULL DEFAULT '#6366f1',
+      icon TEXT NOT NULL DEFAULT 'folder',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
   `);
@@ -161,8 +175,45 @@ export function initializeSchema(db: Database) {
     }
   }
 
-  // Index for categories
+  // Add project_id column to prompts if missing
+  try {
+    db.exec(`ALTER TABLE prompts ADD COLUMN project_id TEXT DEFAULT 'proj_default';`);
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes('duplicate column name')) {
+      console.warn(`[DB] Migration warn: Could not add project_id to prompts:`, err);
+    }
+  }
+
+  // Add text_direction and language columns to prompts if missing (additive, safe)
+  try {
+    db.exec(`ALTER TABLE prompts ADD COLUMN text_direction TEXT DEFAULT 'auto';`);
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes('duplicate column name')) {
+      console.warn(`[DB] Migration warn: Could not add text_direction to prompts:`, err);
+    }
+  }
+
+  try {
+    db.exec(`ALTER TABLE prompts ADD COLUMN language TEXT DEFAULT 'auto';`);
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes('duplicate column name')) {
+      console.warn(`[DB] Migration warn: Could not add language to prompts:`, err);
+    }
+  }
+
+  // Indexes for categories & projects
   db.exec(`CREATE INDEX IF NOT EXISTS idx_prompts_category_id ON prompts(category_id);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prompts_project_id ON prompts(project_id);`);
+
+  // Seed default workspace/project if table is empty
+  const projectCount = (db.prepare(`SELECT COUNT(*) as count FROM projects`).get() as { count: number }).count;
+  if (projectCount === 0) {
+    const now = Date.now();
+    db.prepare(`
+      INSERT INTO projects (id, name, description, color, icon, sort_order, is_default, created_at, updated_at)
+      VALUES ('proj_default', 'General Workspace', 'Default prompt engineering workspace', '#6366f1', 'folder', 1, 1, ?, ?)
+    `).run(now, now);
+  }
 
   // Seed default categories if table is empty
   const catCount = (db.prepare(`SELECT COUNT(*) as count FROM categories`).get() as { count: number }).count;
@@ -201,6 +252,54 @@ export function initializeSchema(db: Database) {
       entity_id TEXT NOT NULL,
       timestamp INTEGER NOT NULL,
       metadata TEXT
+    );
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action);`);
+
+  // 7. Workflows & Sequential Chains (Phase 7)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS workflows (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      category TEXT NOT NULL DEFAULT 'General',
+      is_favorite INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS workflow_steps (
+      id TEXT PRIMARY KEY,
+      workflow_id TEXT NOT NULL,
+      step_order INTEGER NOT NULL,
+      step_name TEXT NOT NULL,
+      provider TEXT NOT NULL DEFAULT 'gemini',
+      model TEXT NOT NULL DEFAULT 'gemini-3.7-flash',
+      prompt_content TEXT NOT NULL,
+      system_instruction TEXT,
+      temperature REAL DEFAULT 0.7,
+      max_tokens INTEGER DEFAULT 2048,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY(workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
+    );
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_workflow_steps_workflow_id ON workflow_steps(workflow_id);`);
+
+  // 8. Evaluation Test Suites (Phase 7)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS eval_suites (
+      id TEXT PRIMARY KEY,
+      prompt_id TEXT,
+      name TEXT NOT NULL,
+      description TEXT,
+      test_cases TEXT NOT NULL DEFAULT '[]',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     );
   `);
 }

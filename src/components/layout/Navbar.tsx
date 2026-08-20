@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Terminal, Home, Search, Sun, Moon, UserCircle, Menu, PlusCircle } from "lucide-react";
+import { Terminal, Home, Search, Sun, Moon, UserCircle, Menu, PlusCircle, Zap } from "lucide-react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { LogoutButton } from "@/components/ui/LogoutButton";
 
 interface NavbarProps {
   onMenuToggle: () => void;
+  onQuickCapture?: () => void;
+  onOpenCommandPalette?: () => void;
   username: string;
   email: string;
 }
 
-export function Navbar({ onMenuToggle, username, email }: NavbarProps) {
+export function Navbar({ onMenuToggle, onQuickCapture, onOpenCommandPalette, username, email }: NavbarProps) {
   const { theme, setTheme } = useTheme();
 
   return (
@@ -50,23 +52,37 @@ export function Navbar({ onMenuToggle, username, email }: NavbarProps) {
         </Link>
       </div>
 
-      {/* Center Search (UI Placeholder) */}
+      {/* Center Search (Interactive Command Palette Trigger) */}
       <div className="flex-1 max-w-sm mx-4 hidden md:block">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground/60">
-            <Search className="h-4 w-4" />
+        <button
+          type="button"
+          onClick={onOpenCommandPalette}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-card/60 hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-all cursor-pointer shadow-2xs group"
+          title="Search prompts or jump to actions (⌘K)"
+        >
+          <div className="flex items-center gap-2.5">
+            <Search className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            <span className="text-xs">Search prompts & actions...</span>
           </div>
-          <input
-            type="text"
-            placeholder="Search prompts..."
-            disabled
-            className="block w-full pl-10 pr-3 py-2 rounded-lg border border-border bg-card/50 text-foreground placeholder-muted-foreground/40 text-xs focus:outline-none cursor-not-allowed opacity-75"
-          />
-        </div>
+          <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground bg-muted border border-border rounded">
+            ⌘K
+          </kbd>
+        </button>
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-3 md:gap-4">
+      <div className="flex items-center gap-2 md:gap-3">
+        {/* Quick Capture Button */}
+        <button
+          type="button"
+          onClick={onQuickCapture}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 transition-colors shadow-2xs cursor-pointer"
+          title="Quick Capture Prompt (Ctrl+Shift+N)"
+        >
+          <Zap className="h-3.5 w-3.5 fill-amber-500/30" />
+          <span className="hidden sm:inline">Quick Capture</span>
+        </button>
+
         {/* New Prompt Button */}
         <Link
           href="/prompts/new"
@@ -75,10 +91,11 @@ export function Navbar({ onMenuToggle, username, email }: NavbarProps) {
           <PlusCircle className="h-4 w-4" />
           <span className="hidden sm:inline">New Prompt</span>
         </Link>
-        {/* Mobile Search Icon Placeholder (visible only on mobile) */}
+        {/* Mobile Search Icon */}
         <button
-          onClick={() => alert("Search is placeholder only in the boilerplate phase.")}
+          onClick={onOpenCommandPalette}
           className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground md:hidden cursor-pointer"
+          title="Search prompts & actions"
         >
           <Search className="h-4.5 w-4.5" />
         </button>

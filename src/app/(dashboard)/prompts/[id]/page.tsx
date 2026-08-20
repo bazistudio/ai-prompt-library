@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -14,10 +14,13 @@ import {
   Tag,
   Clock,
   Trash2,
-  Save,
   Loader2,
   Sparkles,
   RotateCcw,
+  Edit3,
+  Eye,
+  FileCode,
+  Activity,
 } from "lucide-react";
 import {
   fetchPromptById,
@@ -27,6 +30,12 @@ import {
   PromptItem,
   PromptVersion,
 } from "@/services/prompts/promptService";
+import { MarkdownRenderer } from "@/components/editor/MarkdownRenderer";
+import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
+import { TextDirection } from "@/components/editor/languageDetector";
+import { TemplateVariableRunner } from "@/components/prompts/TemplateVariableRunner";
+import { AIPlaygroundRunner } from "@/components/prompts/AIPlaygroundRunner";
+import { AIEnhanceModal } from "@/components/modals/AIEnhanceModal";
 
 export default function PromptDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -36,21 +45,30 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
   const [loading, setLoading] = useState(true);
   const [selectedVersionNum, setSelectedVersionNum] = useState<number | null>(null);
   const [editedContent, setEditedContent] = useState("");
+  const [direction, setDirection] = useState<TextDirection>("auto");
   const [changeSummary, setChangeSummary] = useState("");
   const [savingVersion, setSavingVersion] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [viewFormat, setViewFormat] = useState<"formatted" | "raw">("formatted");
   const [error, setError] = useState<string | null>(null);
 
-  const loadPromptData = async () => {
+  // Phase 6 AI state
+  const [enhanceModalOpen, setEnhanceModalOpen] = useState(false);
+  const [activeWorkbenchTab, setActiveWorkbenchTab] = useState<"runner" | "ai">("ai");
+
+  const loadPromptData = useCallback(async () => {
     try {
       const data = await fetchPromptById(id);
       setPrompt(data);
-      if (data && data.versions && data.versions.length > 0) {
-        const latest = data.current_version || data.versions[data.versions.length - 1].version_number;
-        setSelectedVersionNum(latest);
-        const activeVerObj = data.versions.find((v) => v.version_number === latest);
-        setEditedContent(activeVerObj ? activeVerObj.content : "");
+      if (data) {
+        setDirection(data.text_direction || "auto");
+        if (data.versions && data.versions.length > 0) {
+          const latest = data.current_version || data.versions[data.versions.length - 1].version_number;
+          setSelectedVersionNum(latest);
+          const activeVerObj = data.versions.find((v) => v.version_number === latest);
+          setEditedContent(activeVerObj ? activeVerObj.content : "");
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -58,11 +76,11 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     loadPromptData();
-  }, [id]);
+  }, [loadPromptData]);
 
   const activeVersion: PromptVersion | undefined = prompt?.versions?.find(
     (v) => v.version_number === selectedVersionNum
@@ -87,6 +105,23 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
       await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+
+      // Async audit log
+      if (prompt) {
+        fetch("/api/audit-logs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "prompt.copy",
+            entity: "prompt",
+            entityId: prompt.id,
+            metadata: {
+              title: prompt.title,
+              version: selectedVersionNum,
+            },
+          }),
+        }).catch(() => {});
+      }
     } catch (err) {
       console.error("Failed to copy text:", err);
     }
@@ -97,6 +132,20 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
     try {
       const res = await toggleFavorite(prompt.id);
       setPrompt((prev) => (prev ? { ...prev, is_favorite: res.is_favorite } : null));
+
+      fetch("/api/audit-logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "prompt.favorite",
+          entity: "prompt",
+          entityId: prompt.id,
+          metadata: {
+            title: prompt.title,
+            is_favorite: res.is_favorite,
+          },
+        }),
+      }).catch(() => {});
     } catch (err) {
       console.error(err);
     }
@@ -208,6 +257,8 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
     );
   }
 
+  const currentContentToDisplay = activeVersion?.content || editedContent;
+
   return (
     <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-6 text-left">
       {/* Top Bar Navigation */}
@@ -227,7 +278,7 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
           >
             <Star
               className={`h-3.5 w-3.5 ${
-                prompt.is_favorite ? "text-accent fill-accent" : "text-muted-foreground"
+                prompt.is_favorite ? "text-amber-500 fill-amber-500" : "text-muted-foreground"
               }`}
             />
             <span>{prompt.is_favorite ? "Starred" : "Star Favorite"}</span>
@@ -235,7 +286,7 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
 
           <button
             onClick={handleDelete}
-            className="px-3 py-1.5 rounded-lg border border-danger/30 bg-danger/10 text-xs font-semibold text-danger flex items-center gap-1.5 hover:bg-danger/20 transition-colors cursor-pointer"
+            className="px-3 py-1.5 rounded-lg border border-destructive/30 bg-destructive/10 text-xs font-semibold text-destructive flex items-center gap-1.5 hover:bg-destructive/20 transition-colors cursor-pointer"
           >
             <Trash2 className="h-3.5 w-3.5" />
             <span>Delete</span>
@@ -252,8 +303,26 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
                 <Folder className="h-3 w-3 text-primary" />
                 {prompt.category}
               </span>
+              {prompt.project_name && (
+                <span
+                  className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 border border-border"
+                  style={{
+                    backgroundColor: `${prompt.project_color || "#6366f1"}15`,
+                    color: prompt.project_color || "#6366f1",
+                  }}
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: prompt.project_color || "#6366f1" }}
+                  />
+                  {prompt.project_name}
+                </span>
+              )}
               <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                Latest: v{prompt.current_version}
+                Active: v{selectedVersionNum} (of v{prompt.current_version})
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border uppercase">
+                {direction.toUpperCase()}
               </span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">{prompt.title}</h1>
@@ -265,7 +334,7 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
           {/* Primary Copy Prompt Action Button */}
           <button
             onClick={handleCopy}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary shrink-0 cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary/20 shrink-0 cursor-pointer"
           >
             {copied ? (
               <>
@@ -301,6 +370,10 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
 
           <div className="flex items-center gap-4 text-[10px]">
             <span className="flex items-center gap-1">
+              <Activity className="h-3 w-3" />
+              0 uses
+            </span>
+            <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
               Updated: {formatDate(prompt.updated_at)}
             </span>
@@ -322,7 +395,7 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
             <button
               onClick={handleRestoreAsNewVersion}
               disabled={savingVersion}
-              className="px-3 py-1 rounded-lg bg-accent/20 text-accent border border-accent/30 text-xs font-semibold flex items-center gap-1.5 hover:bg-accent/30 transition-colors cursor-pointer"
+              className="px-3 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-xs font-semibold flex items-center gap-1.5 hover:bg-primary/20 transition-colors cursor-pointer"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               <span>Restore v{selectedVersionNum} as New Version</span>
@@ -342,7 +415,7 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
                 onClick={() => handleSelectVersion(ver.version_number)}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
                   isSelected
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    ? "bg-primary text-primary-foreground border-primary shadow-xs"
                     : "bg-secondary/40 text-muted-foreground hover:text-foreground border-border hover:bg-secondary"
                 }`}
               >
@@ -372,9 +445,63 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
         )}
       </div>
 
-      {/* Prompt Text Workspace & Editor */}
+      {/* Workbench Tab Selector & Interactive Runners */}
+      {!isEditing && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 border-b border-border/60 pb-2">
+            <button
+              onClick={() => setActiveWorkbenchTab("ai")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                activeWorkbenchTab === "ai"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>AI Live Playground</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full font-mono bg-background/20">
+                Phase 6
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveWorkbenchTab("runner")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                activeWorkbenchTab === "runner"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              <FileCode className="h-3.5 w-3.5" />
+              <span>Template Variable Runner</span>
+            </button>
+          </div>
+
+          {activeWorkbenchTab === "ai" ? (
+            <AIPlaygroundRunner
+              promptId={prompt.id}
+              promptTitle={prompt.title}
+              rawContent={activeVersion?.content || editedContent}
+              renderedContent={activeVersion?.content || editedContent}
+              onSaveAsVersion={async (output) => {
+                setEditedContent(output);
+                setChangeSummary("AI Generated Output / Variation");
+                setIsEditing(true);
+              }}
+            />
+          ) : (
+            <TemplateVariableRunner
+              promptId={prompt.id}
+              promptTitle={prompt.title}
+              content={activeVersion?.content || editedContent}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Prompt Instructions Content & Editor */}
       <div className="glass-card p-6 rounded-2xl border border-border space-y-4 bg-card">
-        <div className="flex items-center justify-between border-b border-border/40 pb-3">
+        <div className="flex items-center justify-between border-b border-border/40 pb-3 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
@@ -383,19 +510,58 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
           </div>
 
           <div className="flex items-center gap-2">
+            {/* AI Enhance Button */}
+            <button
+              onClick={() => setEnhanceModalOpen(true)}
+              className="px-3 py-1.5 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Enhance, optimize, or structure with Gemini"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Enhance with AI</span>
+            </button>
+
+            {!isEditing && (
+              <div className="flex items-center bg-muted/60 border border-border rounded-lg p-0.5 text-xs mr-1">
+                <button
+                  type="button"
+                  onClick={() => setViewFormat("formatted")}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
+                    viewFormat === "formatted" ? "bg-card text-foreground font-semibold shadow-2xs" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Eye className="h-3 w-3" />
+                  <span>Rich View</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewFormat("raw")}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
+                    viewFormat === "raw" ? "bg-card text-foreground font-semibold shadow-2xs" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <FileCode className="h-3 w-3" />
+                  <span>Raw Text</span>
+                </button>
+              </div>
+            )}
+
             {!isEditing ? (
               <button
                 onClick={() => setIsEditing(true)}
-                className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                Edit Content
+                <Edit3 className="h-3.5 w-3.5" />
+                <span>Edit & New Version</span>
               </button>
             ) : (
               <button
-                onClick={() => setIsEditing(false)}
+                onClick={() => {
+                  setIsEditing(false);
+                  if (activeVersion) setEditedContent(activeVersion.content);
+                }}
                 className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
-                Cancel Edit
+                Cancel
               </button>
             )}
           </div>
@@ -403,66 +569,83 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
 
         {isEditing ? (
           <div className="space-y-4">
-            <textarea
-              rows={14}
+            <RichMarkdownEditor
               value={editedContent}
-              onChange={(e) => setEditedContent(e.target.value)}
-              className="block w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground font-mono text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/50 resize-y"
+              onChange={setEditedContent}
+              direction={direction}
+              onDirectionChange={setDirection}
+              placeholder="Edit prompt instructions with rich markdown formatting..."
+              minHeight="min-h-[400px]"
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-              <input
-                type="text"
-                value={changeSummary}
-                onChange={(e) => setChangeSummary(e.target.value)}
-                placeholder="Optional version note (e.g. Added video title hook)..."
-                className="sm:col-span-2 px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-ring/50"
-              />
+            <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <input
+                  type="text"
+                  value={changeSummary}
+                  onChange={(e) => setChangeSummary(e.target.value)}
+                  placeholder="Version change summary (e.g. Added Arabic translation & table rules)..."
+                  className="flex-1 px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring/50"
+                />
 
-              <button
-                onClick={handleSaveAsNewVersion}
-                disabled={savingVersion || !editedContent.trim()}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground font-semibold text-xs shadow-md shadow-primary cursor-pointer disabled:opacity-50"
-              >
-                {savingVersion ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Saving v{(prompt.current_version || 1) + 1}...</span>
-                  </>
-                ) : (
-                  <>
-                    <PlusCircle className="h-4 w-4" />
-                    <span>Save as Version v{(prompt.current_version || 1) + 1}</span>
-                  </>
-                )}
-              </button>
+                <button
+                  onClick={handleSaveAsNewVersion}
+                  disabled={savingVersion || !editedContent.trim()}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs shadow-md shadow-primary/20 cursor-pointer disabled:opacity-50 shrink-0"
+                >
+                  {savingVersion ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Recording v{(prompt.current_version || 1) + 1}...</span>
+                    </>
+                  ) : (
+                    <>
+                      <PlusCircle className="h-4 w-4" />
+                      <span>Save as Version v{(prompt.current_version || 1) + 1}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         ) : (
           <div className="relative group">
-            <pre className="w-full p-4 rounded-xl bg-background border border-border font-mono text-xs leading-relaxed text-foreground whitespace-pre-wrap overflow-x-auto min-h-[240px]">
-              {activeVersion?.content || editedContent}
-            </pre>
-
-            <button
-              onClick={handleCopy}
-              className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-card/90 border border-border text-xs font-semibold text-foreground opacity-80 group-hover:opacity-100 hover:bg-card transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
-            >
-              {copied ? (
-                <>
-                  <Check className="h-3.5 w-3.5 text-primary" />
-                  <span className="text-primary font-bold">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>Copy</span>
-                </>
-              )}
-            </button>
+            {viewFormat === "formatted" ? (
+              <div className="p-6 rounded-2xl bg-card border border-border min-h-[260px] shadow-2xs">
+                <MarkdownRenderer
+                  content={currentContentToDisplay}
+                  textDirection={direction}
+                  interactiveChecklists={false}
+                />
+              </div>
+            ) : (
+              <pre
+                className="w-full p-5 rounded-2xl bg-background border border-border font-mono text-xs leading-relaxed text-foreground whitespace-pre-wrap overflow-x-auto min-h-[260px]"
+                dir={direction === "auto" ? "auto" : direction}
+              >
+                {currentContentToDisplay}
+              </pre>
+            )}
           </div>
         )}
       </div>
+
+      {/* AI Enhancement Modal */}
+      <AIEnhanceModal
+        isOpen={enhanceModalOpen}
+        onClose={() => setEnhanceModalOpen(false)}
+        originalContent={isEditing ? editedContent : activeVersion?.content || editedContent}
+        onApply={(enhanced) => {
+          setEditedContent(enhanced);
+          setIsEditing(true);
+        }}
+        onSaveAsVersion={async (enhanced) => {
+          setEditedContent(enhanced);
+          setChangeSummary("Enhanced with Gemini AI");
+          setIsEditing(true);
+        }}
+      />
     </div>
   );
 }
+

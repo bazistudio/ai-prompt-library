@@ -19,8 +19,6 @@ const api = {
 
   security: {
     getStatus: () => ipcRenderer.invoke("security:getStatus"),
-    lockApp: () => ipcRenderer.invoke("security:lockApp"),
-    removeCredentials: (credential: string) => ipcRenderer.invoke("security:removeCredentials", credential),
     unlock: (input: string) => ipcRenderer.invoke("security:unlock", input),
     changePassword: (currentPassword?: string, newPassword?: string) => ipcRenderer.invoke("security:changePassword", currentPassword, newPassword),
     setupPin: (password: string, pin: string) => ipcRenderer.invoke("security:setupPin", password, pin),
@@ -33,6 +31,12 @@ const api = {
   storage: {
     selectFolder: () => ipcRenderer.invoke("storage:selectFolder"),
     openFolder: (targetPath?: string) => ipcRenderer.invoke("storage:openStorageFolder", targetPath),
+  },
+
+  license: {
+    getStatus: () => ipcRenderer.invoke("license:getStatus"),
+    activate: (key: string) => ipcRenderer.invoke("license:activate", key),
+    deactivate: () => ipcRenderer.invoke("license:deactivate"),
   },
 
   onMenuNavigate: (callback: (path: string) => void) => {
@@ -54,6 +58,27 @@ const api = {
     ipcRenderer.on("menu:openAboutDialog", sub);
     return () => {
       ipcRenderer.removeListener("menu:openAboutDialog", sub);
+    };
+  },
+  onOpenQuickCapture: (callback: () => void) => {
+    const sub = () => callback();
+    ipcRenderer.on("quick-capture:open", sub);
+    return () => {
+      ipcRenderer.removeListener("quick-capture:open", sub);
+    };
+  },
+  onOpenCommandPalette: (callback: () => void) => {
+    const sub = () => callback();
+    ipcRenderer.on("menu:openCommandPalette", sub);
+    return () => {
+      ipcRenderer.removeListener("menu:openCommandPalette", sub);
+    };
+  },
+  onOpenShortcuts: (callback: () => void) => {
+    const sub = () => callback();
+    ipcRenderer.on("menu:openShortcuts", sub);
+    return () => {
+      ipcRenderer.removeListener("menu:openShortcuts", sub);
     };
   },
 };

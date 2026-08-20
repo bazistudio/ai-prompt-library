@@ -36,6 +36,12 @@ export function setupApplicationMenu(mainWindow: BrowserWindow) {
     {
       label: "Edit",
       submenu: [
+        {
+          label: "Find & Command Palette...",
+          accelerator: "CmdOrCtrl+K",
+          click: () => mainWindow.webContents.send("menu:openCommandPalette"),
+        },
+        { type: "separator" },
         { role: "undo" },
         { role: "redo" },
         { type: "separator" },
@@ -95,7 +101,8 @@ export function setupApplicationMenu(mainWindow: BrowserWindow) {
       submenu: [
         {
           label: "Keyboard Shortcuts",
-          click: () => mainWindow.webContents.send("menu:navigate", "/settings"),
+          accelerator: "CmdOrCtrl+/",
+          click: () => mainWindow.webContents.send("menu:openShortcuts"),
         },
         { type: "separator" },
         {

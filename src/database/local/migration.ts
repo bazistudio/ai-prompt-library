@@ -112,7 +112,7 @@ export function migrateLegacyDatabase(targetDb: Database.Database): void {
     if (legacyDb) {
       try {
         legacyDb.close();
-      } catch (e) {
+      } catch {
         // ignore
       }
     }

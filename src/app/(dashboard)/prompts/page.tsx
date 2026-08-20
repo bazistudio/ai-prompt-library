@@ -14,6 +14,7 @@ import {
   Sparkles,
   LayoutGrid,
   List,
+  Activity,
 } from "lucide-react";
 import { fetchPrompts, toggleFavorite, PromptItem } from "@/services/prompts/promptService";
 
@@ -21,6 +22,7 @@ function PromptsLibraryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeCategory = searchParams.get("category") || "All";
+  const activeProjectId = searchParams.get("projectId") || "";
   const isFavoriteOnly = searchParams.get("favorite") === "true";
 
   const [prompts, setPrompts] = useState<PromptItem[]>([]);
@@ -34,6 +36,7 @@ function PromptsLibraryContent() {
 
     fetchPrompts({
       category: activeCategory !== "All" ? activeCategory : undefined,
+      projectId: activeProjectId || undefined,
       favoriteOnly: isFavoriteOnly,
       search: searchQuery,
     })
@@ -48,7 +51,7 @@ function PromptsLibraryContent() {
     return () => {
       isMounted = false;
     };
-  }, [activeCategory, isFavoriteOnly, searchQuery]);
+  }, [activeCategory, activeProjectId, isFavoriteOnly, searchQuery]);
 
   const handleToggleFavorite = async (e: React.MouseEvent, promptId: string) => {
     e.stopPropagation();
@@ -182,10 +185,27 @@ function PromptsLibraryContent() {
             >
               {/* Header */}
               <div className="flex items-start justify-between gap-2">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-foreground border border-border flex items-center gap-1">
-                  <Folder className="h-3 w-3 text-primary" />
-                  {prompt.category}
-                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-foreground border border-border flex items-center gap-1">
+                    <Folder className="h-3 w-3 text-primary" />
+                    {prompt.category}
+                  </span>
+                  {prompt.project_name && (
+                    <span
+                      className="text-[9px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 border border-border/60"
+                      style={{
+                        backgroundColor: `${prompt.project_color || "#6366f1"}15`,
+                        color: prompt.project_color || "#6366f1",
+                      }}
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: prompt.project_color || "#6366f1" }}
+                      />
+                      {prompt.project_name}
+                    </span>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
@@ -240,6 +260,10 @@ function PromptsLibraryContent() {
 
                 <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                   <span className="flex items-center gap-1">
+                    <Activity className="h-3 w-3" />
+                    0 uses
+                  </span>
+                  <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     {formatDate(prompt.updated_at)}
                   </span>
@@ -288,6 +312,10 @@ function PromptsLibraryContent() {
               <div className="flex items-center gap-3 shrink-0">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-foreground border border-border hidden sm:inline">
                   {prompt.category}
+                </span>
+                <span className="text-[10px] text-muted-foreground hidden sm:inline-flex items-center gap-1">
+                  <Activity className="h-3 w-3" />
+                  0 uses
                 </span>
                 <span className="text-[10px] text-muted-foreground hidden md:inline">
                   {formatDate(prompt.updated_at)}

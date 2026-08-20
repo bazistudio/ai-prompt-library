@@ -3,11 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Loader2, Tag, Folder, FileText, Sparkles } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Tag, Folder, Sparkles, Layers } from "lucide-react";
 import { createPrompt } from "@/services/prompts/promptService";
 import { CategoryItem, fetchCategories } from "@/services/categories/categoryService";
+import { ProjectItem, fetchProjects } from "@/services/projects/projectService";
 import { getStoragePath } from "@/services/storage/storageService";
 import { FirstUseStorageModal } from "@/components/storage/FirstUseStorageModal";
+import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
+import { TextDirection } from "@/components/editor/languageDetector";
 
 export default function CreatePromptPage() {
   const router = useRouter();
@@ -15,23 +18,30 @@ export default function CreatePromptPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Coding");
+  const [projectId, setProjectId] = useState("proj_default");
   const [tagsInput, setTagsInput] = useState("");
   const [content, setContent] = useState("");
+  const [direction, setDirection] = useState<TextDirection>("auto");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Dynamic Categories
+  // Dynamic Categories & Projects
   const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
 
   // First Use Storage Modal
   const [isFirstUseModalOpen, setIsFirstUseModalOpen] = useState(false);
 
   useEffect(() => {
-    fetchCategories()
-      .then((cats) => {
+    Promise.all([fetchCategories(), fetchProjects()])
+      .then(([cats, projs]) => {
         setCategories(cats);
+        setProjects(projs);
         if (cats.length > 0) {
           setCategory(cats[0].name);
+        }
+        if (projs.length > 0) {
+          setProjectId(projs[0].id);
         }
       })
       .catch(console.error);
@@ -51,8 +61,10 @@ export default function CreatePromptPage() {
         title,
         description,
         category,
+        projectId,
         tags,
         content,
+        textDirection: direction,
       });
 
       if (res.success && res.promptId) {
@@ -96,7 +108,7 @@ export default function CreatePromptPage() {
   };
 
   return (
-    <div className="max-w-4xl w-full mx-auto px-6 py-8 space-y-6 text-left">
+    <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-6 text-left">
       {/* Top Header Navigation */}
       <div className="flex items-center justify-between">
         <Link
@@ -115,13 +127,13 @@ export default function CreatePromptPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Create New Prompt</h1>
         <p className="text-xs text-muted-foreground">
-          Save a new prompt template into your offline local database and prompt library folder.
+          Multilingual Markdown prompt editor with RTL/LTR support, code snippets, checklists, tables, and images.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
-          <div className="p-3 rounded-xl bg-danger/10 border border-danger/20 text-danger text-xs font-semibold">
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold">
             {error}
           </div>
         )}
@@ -130,20 +142,20 @@ export default function CreatePromptPage() {
           {/* Title */}
           <div>
             <label className="block text-xs font-bold text-foreground mb-1.5">
-              Prompt Title <span className="text-danger">*</span>
+              Prompt Title <span className="text-destructive">*</span>
             </label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. YouTube Video Script Generator, Python Code Reviewer..."
+              placeholder="e.g. YouTube Video Script Generator, Python Code Reviewer, اردو مواد نگار..."
               className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50"
             />
           </div>
 
-          {/* Category & Tags Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Category, Workspace & Tags Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
                 <Folder className="h-3.5 w-3.5 text-primary" />
@@ -164,6 +176,24 @@ export default function CreatePromptPage() {
 
             <div>
               <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5 text-primary" />
+                Workspace / Project
+              </label>
+              <select
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+                className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50 cursor-pointer"
+              >
+                {projects.map((proj) => (
+                  <option key={proj.id} value={proj.id}>
+                    {proj.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
                 <Tag className="h-3.5 w-3.5 text-primary" />
                 Tags (Comma separated)
               </label>
@@ -171,7 +201,7 @@ export default function CreatePromptPage() {
                 type="text"
                 value={tagsInput}
                 onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="youtube, marketing, script"
+                placeholder="youtube, marketing, urdu, ai"
                 className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50"
               />
             </div>
@@ -191,19 +221,18 @@ export default function CreatePromptPage() {
             />
           </div>
 
-          {/* Prompt Content */}
+          {/* Multilingual Rich Markdown Prompt Content */}
           <div>
-            <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
-              <FileText className="h-3.5 w-3.5 text-primary" />
-              Prompt Content <span className="text-danger">*</span>
+            <label className="block text-xs font-bold text-foreground mb-1.5">
+              Prompt Instructions & Content <span className="text-destructive">*</span>
             </label>
-            <textarea
-              required
-              rows={12}
+            <RichMarkdownEditor
               value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Write your prompt template from scratch or paste an external prompt here..."
-              className="block w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground font-mono text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/50 resize-y"
+              onChange={setContent}
+              direction={direction}
+              onDirectionChange={setDirection}
+              placeholder="Write or paste prompt instructions in English, Urdu (اردو), Arabic (العربية), Hindi (हिन्दी), Chinese (中文), or mixed languages. Use toolbar for checklists, tables, code blocks, highlights, and images..."
+              minHeight="min-h-[420px]"
             />
           </div>
         </div>
@@ -219,7 +248,7 @@ export default function CreatePromptPage() {
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary/20 cursor-pointer disabled:opacity-50"
           >
             {saving ? (
               <>
@@ -245,3 +274,4 @@ export default function CreatePromptPage() {
     </div>
   );
 }
+

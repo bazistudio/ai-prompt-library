@@ -1,10 +1,10 @@
 {
   "name": "ai-prompt-library",
-  "version": "1.0.4",
+  "version": "1.0.2",
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3000 -H 0.0.0.0",
     "dev:all": "npm run electron:dev",
     "build": "next build",
     "start": "next start",
@@ -16,6 +16,7 @@
     "electron:dist": "npm run electron:build && electron-builder --win nsis"
   },
   "dependencies": {
+    "@google/genai": "^2.18.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.3",
     "electron-updater": "^6.3.9",

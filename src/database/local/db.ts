@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { getDatabase, getDatabasePath } from "./manager";
+import { getDatabase } from "./manager";
 import { migrateLegacyDatabase } from "./migration";
 
 let migrationChecked = false;

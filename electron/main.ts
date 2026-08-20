@@ -1,10 +1,12 @@
-import { app, BrowserWindow, ipcMain, shell, net, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, shell, dialog } from "electron";
 import path from "path";
 import fsSync from "fs";
 import http from "http";
 import next from "next";
 import { initializeUpdater, checkForUpdatesManually } from "./updater";
 import { setupApplicationMenu } from "./menu";
+import { setupSystemTray, destroySystemTray } from "./tray";
+import { initializeLicenseManager } from "./licenseManager";
 import {
   getSecurityStatus,
   unlockApplication,
@@ -14,8 +16,6 @@ import {
   recoverAndResetCredentials,
   toggleAppLock,
   setLockMethod,
-  lockApp,
-  removeLockCredentials,
   isAppLocked,
   setAppLockedState,
 } from "./securityManager";
@@ -212,8 +212,6 @@ function protectedHandle(channel: string, handler: (...args: any[]) => any) {
 
 // Security IPC Handlers (Main Process Security Boundary)
 ipcMain.handle("security:getStatus", () => getSecurityStatus());
-ipcMain.handle("security:lockApp", () => lockApp());
-ipcMain.handle("security:removeCredentials", (_, credential: string) => removeLockCredentials(credential));
 ipcMain.handle("security:unlock", (_, input: string) => unlockApplication(input));
 ipcMain.handle("security:changePassword", (_, currentPassword?: string, newPassword?: string) => setupOrUpdatePassword(currentPassword, newPassword));
 ipcMain.handle("security:setupPin", (_, password: string, pin: string) => setupOrUpdatePin(password, pin));
@@ -291,6 +289,18 @@ app.whenReady().then(async () => {
     console.error("[Main] Failed to initialize updater:", updErr);
   }
 
+  try {
+    setupSystemTray(() => mainWindow);
+  } catch (trayErr) {
+    console.error("[Main] Failed to initialize system tray:", trayErr);
+  }
+
+  try {
+    initializeLicenseManager();
+  } catch (licErr) {
+    console.error("[Main] Failed to initialize license manager:", licErr);
+  }
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow().catch((e) => console.error("[Main] Activate createWindow error:", e));
@@ -305,6 +315,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("will-quit", () => {
+  destroySystemTray();
   if (prodServer) {
     console.log("[Main] Closing production Next.js HTTP server...");
     prodServer.close();

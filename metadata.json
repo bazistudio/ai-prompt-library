@@ -1,0 +1,6 @@
+{
+  "name": "AI Prompt Library",
+  "description": "Your offline-first, professional prompt engineering workspace.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

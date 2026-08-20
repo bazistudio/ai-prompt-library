@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lock, KeyRound, ShieldAlert, CheckCircle2, ArrowRight, RefreshCw, Copy, Check, Eye, EyeOff } from "lucide-react";
+import { Lock, KeyRound, ShieldAlert, ArrowRight, RefreshCw } from "lucide-react";
 
 import { SecurityStatusData } from "@/types/electron";
 
@@ -11,11 +11,6 @@ export function LockScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-
-  // Eye toggles
-  const [showUnlockInput, setShowUnlockInput] = useState(false);
-  const [showRecoveryNewPassword, setShowRecoveryNewPassword] = useState(false);
-  const [showRecoveryConfirmPassword, setShowRecoveryConfirmPassword] = useState(false);
 
   // Recovery modal state
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
@@ -41,15 +36,6 @@ export function LockScreen() {
 
   useEffect(() => {
     fetchStatus();
-
-    const handleLockStateChange = () => {
-      fetchStatus();
-    };
-
-    window.addEventListener("app:lock-state-changed", handleLockStateChange);
-    return () => {
-      window.removeEventListener("app:lock-state-changed", handleLockStateChange);
-    };
   }, []);
 
   // Cooldown timer interval
@@ -67,7 +53,7 @@ export function LockScreen() {
     return () => clearInterval(timer);
   }, [cooldown]);
 
-  if (!status || !status.isLocked) {
+  if (!status || !status.enabled || !status.isLocked) {
     return null;
   }
 
@@ -175,26 +161,16 @@ export function LockScreen() {
             <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
               <span>{status.method === "pin" ? "6-Digit PIN" : "Account Password"}</span>
             </label>
-            <div className="relative">
-              <input
-                type={showUnlockInput ? "text" : "password"}
-                value={input}
-                onChange={(e) => setInput(status.method === "pin" ? e.target.value.replace(/\D/g, "") : e.target.value)}
-                placeholder={status.method === "pin" ? "••••••" : "••••••••••••"}
-                maxLength={status.method === "pin" ? 6 : 100}
-                disabled={cooldown > 0 || loading}
-                className="w-full pl-4 pr-12 py-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 text-center tracking-widest font-mono"
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => setShowUnlockInput(!showUnlockInput)}
-                disabled={cooldown > 0 || loading}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none disabled:opacity-50 cursor-pointer"
-              >
-                {showUnlockInput ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
+            <input
+              type="password"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={status.method === "pin" ? "••••••" : "••••••••••••"}
+              maxLength={status.method === "pin" ? 6 : 100}
+              disabled={cooldown > 0 || loading}
+              className="w-full px-4 py-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 text-center tracking-widest font-mono"
+              autoFocus
+            />
           </div>
 
           <button
@@ -261,44 +237,26 @@ export function LockScreen() {
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">
                   New Password
                 </label>
-                <div className="relative">
-                  <input
-                    type={showRecoveryNewPassword ? "text" : "password"}
-                    value={newPasswordInput}
-                    onChange={(e) => setNewPasswordInput(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full pl-3 pr-10 py-2 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowRecoveryNewPassword(!showRecoveryNewPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none cursor-pointer"
-                  >
-                    {showRecoveryNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+                <input
+                  type="password"
+                  value={newPasswordInput}
+                  onChange={(e) => setNewPasswordInput(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
+                />
               </div>
 
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">
                   Confirm New Password
                 </label>
-                <div className="relative">
-                  <input
-                    type={showRecoveryConfirmPassword ? "text" : "password"}
-                    value={confirmPasswordInput}
-                    onChange={(e) => setConfirmPasswordInput(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full pl-3 pr-10 py-2 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowRecoveryConfirmPassword(!showRecoveryConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none cursor-pointer"
-                  >
-                    {showRecoveryConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+                <input
+                  type="password"
+                  value={confirmPasswordInput}
+                  onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
+                />
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">

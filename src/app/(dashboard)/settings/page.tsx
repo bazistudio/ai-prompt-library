@@ -6,10 +6,13 @@ import { PromptEditorSettings } from "@/components/settings/PromptEditorSettings
 import { LibrarySettings } from "@/components/settings/LibrarySettings";
 import { AccountSettings } from "@/components/settings/AccountSettings";
 import { StorageSettings } from "@/components/settings/StorageSettings";
+import { AISettings } from "@/components/settings/AISettings";
 import { AboutSettings } from "@/components/settings/AboutSettings";
-import { Palette, PenTool, Library, User, Database, Info } from "lucide-react";
+import { LicenseSettings } from "@/components/settings/LicenseSettings";
+import { BackupSettings } from "@/components/settings/BackupSettings";
+import { Palette, PenTool, Library, User, Database, Info, ShieldCheck, Bot, Archive } from "lucide-react";
 
-type SettingsTab = "appearance" | "editor" | "library" | "account" | "storage" | "about";
+type SettingsTab = "appearance" | "editor" | "library" | "ai" | "account" | "storage" | "backup" | "license" | "about";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
@@ -18,8 +21,11 @@ export default function SettingsPage() {
     { id: "appearance", label: "Appearance", icon: Palette },
     { id: "editor", label: "Prompt Editor", icon: PenTool },
     { id: "library", label: "Library", icon: Library },
+    { id: "ai", label: "AI & Models", icon: Bot },
     { id: "account", label: "Account", icon: User },
     { id: "storage", label: "Storage", icon: Database },
+    { id: "backup", label: "Backup & Restore", icon: Archive },
+    { id: "license", label: "License & Edition", icon: ShieldCheck },
     { id: "about", label: "About", icon: Info },
   ] as const;
 
@@ -31,10 +37,16 @@ export default function SettingsPage() {
         return <PromptEditorSettings />;
       case "library":
         return <LibrarySettings />;
+      case "ai":
+        return <AISettings />;
       case "account":
         return <AccountSettings />;
       case "storage":
         return <StorageSettings />;
+      case "backup":
+        return <BackupSettings />;
+      case "license":
+        return <LicenseSettings />;
       case "about":
         return <AboutSettings />;
       default:

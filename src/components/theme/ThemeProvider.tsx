@@ -49,7 +49,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const savedHighlights = localStorage.getItem("pref-accent-highlights");
     const savedReduce = localStorage.getItem("pref-reduce-animations");
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (savedTheme) setThemeState(savedTheme);
     if (savedPrimary && isValidHex(savedPrimary)) setPrimaryColorState(savedPrimary);
     if (savedAccent && isValidHex(savedAccent)) setAccentColorState(savedAccent);

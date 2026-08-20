@@ -15,7 +15,7 @@ export function ColorPicker({ value, onChange, presets, label }: ColorPickerProp
 
   // Sync state if value changes externally
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setCustomVal(value);
   }, [value]);
 

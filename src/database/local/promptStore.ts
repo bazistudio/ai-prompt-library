@@ -8,6 +8,7 @@ import {
   deletePromptDb,
   getPromptsDb,
   getPromptByIdDb,
+  getPromptStatsDb,
   CreatePromptPayload,
   AddVersionPayload,
   UpdateMetaPayload,
@@ -49,4 +50,9 @@ export function getPrompts(options: GetPromptsOptions = {}) {
 export function getPromptById(promptId: string) {
   const db = getSQLiteDB();
   return getPromptByIdDb(db, promptId);
+}
+
+export function getPromptStats() {
+  const db = getSQLiteDB();
+  return getPromptStatsDb(db);
 }
