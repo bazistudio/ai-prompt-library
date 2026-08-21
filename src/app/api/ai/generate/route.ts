@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { AIProvider } from "@/services/ai/aiTypes";
 import { getSQLiteDB } from "@/database/local/db";
 import { logAuditEventDb } from "@/database/local/auditQueries";
+import { incrementPromptUsageDb } from "@/database/local/promptQueries";
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
@@ -228,8 +229,12 @@ export async function POST(req: NextRequest) {
           promptTitle: promptTitle || "Direct AI Playground Run",
         },
       });
+
+      if (promptId) {
+        incrementPromptUsageDb(db, promptId);
+      }
     } catch (auditErr) {
-      console.warn("[AI Generate] Audit log error (non-fatal):", auditErr);
+      console.warn("[AI Generate] Audit/Usage log error (non-fatal):", auditErr);
     }
 
     return NextResponse.json({

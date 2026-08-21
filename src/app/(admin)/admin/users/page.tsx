@@ -30,19 +30,22 @@ export default function AdminUsersPage() {
           <thead className="bg-muted/50 border-b border-border text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-6 py-4 font-semibold">User</th>
+              <th className="px-6 py-4 font-semibold">Email</th>
               <th className="px-6 py-4 font-semibold">Role</th>
               <th className="px-6 py-4 font-semibold">Status</th>
+              <th className="px-6 py-4 font-semibold">Created</th>
+              <th className="px-6 py-4 font-semibold">Last Login</th>
               <th className="px-6 py-4 font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {/* Empty State */}
             <tr>
-              <td colSpan={4} className="px-6 py-12 text-center">
+              <td colSpan={7} className="px-6 py-12 text-center">
                 <div className="flex flex-col items-center justify-center text-muted-foreground">
                   <Users className="h-8 w-8 mb-3 opacity-50" />
                   <p className="text-sm font-semibold text-foreground">No users found</p>
-                  <p className="text-xs mt-1">The user database is currently empty.</p>
+                  <p className="text-xs mt-1">The user database is currently empty (Phase B pending).</p>
                 </div>
               </td>
             </tr>

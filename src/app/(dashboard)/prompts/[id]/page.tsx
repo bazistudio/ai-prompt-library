@@ -106,8 +106,14 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
 
-      // Async audit log
+      // Async audit and usage log
       if (prompt) {
+        fetch(`/api/desktop-prompts/${prompt.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "logUsage" }),
+        }).catch(() => {});
+
         fetch("/api/audit-logs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

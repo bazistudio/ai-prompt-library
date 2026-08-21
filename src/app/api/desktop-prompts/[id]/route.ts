@@ -5,6 +5,7 @@ import {
   updatePromptMeta,
   toggleFavorite,
   deletePrompt,
+  incrementPromptUsage,
 } from "@/database/local/promptStore";
 
 export async function GET(
@@ -41,6 +42,9 @@ export async function POST(
       return NextResponse.json(result);
     } else if (body.action === "updateMeta") {
       const result = updatePromptMeta({ promptId: id, title: body.title, description: body.description, category: body.category, tags: body.tags });
+      return NextResponse.json(result);
+    } else if (body.action === "logUsage") {
+      const result = incrementPromptUsage(id);
       return NextResponse.json(result);
     }
     return NextResponse.json({ success: false, message: "Invalid action" }, { status: 400 });

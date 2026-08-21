@@ -261,6 +261,16 @@ export function toggleFavoriteDb(db: Database, promptId: string) {
   return { success: true, is_favorite: row ? row.is_favorite === 1 : false };
 }
 
+export function incrementPromptUsageDb(db: Database, promptId: string) {
+  const now = Date.now();
+  db.prepare(`
+    UPDATE prompts 
+    SET usage_count = usage_count + 1, last_used_at = ? 
+    WHERE id = ?
+  `).run(now, promptId);
+  return { success: true };
+}
+
 export function deletePromptDb(db: Database, promptId: string) {
   const stmt = db.prepare(`DELETE FROM prompts WHERE id = ?`);
   stmt.run(promptId);

@@ -7,6 +7,7 @@ import { initializeUpdater, checkForUpdatesManually } from "./updater";
 import { setupApplicationMenu } from "./menu";
 import { setupSystemTray, destroySystemTray } from "./tray";
 import { initializeLicenseManager } from "./licenseManager";
+import { startBackupScheduler, stopBackupScheduler } from "./backupScheduler";
 import {
   getSecurityStatus,
   unlockApplication,
@@ -47,9 +48,10 @@ if (app.isPackaged) {
 
 app.on("second-instance", () => {
   if (mainWindow) {
-    if (!mainWindow.isVisible()) mainWindow.show();
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
+  } else {
+    createWindow().catch((e) => console.error("[Main] second-instance createWindow error:", e));
   }
 });
 
@@ -81,8 +83,21 @@ async function waitForDevServer(targetUrl: string, retries = 60, delayMs = 1000)
 }
 
 async function startProductionServer(): Promise<string> {
+  if (prodServer) {
+    const address = prodServer.address();
+    if (typeof address === "object" && address !== null) {
+      return `http://127.0.0.1:${address.port}`;
+    }
+  }
+
   console.log("[Main] Initializing production Next.js server...");
-  const appPath = app.getAppPath();
+  let appPath = app.getAppPath();
+  
+  if (app.isPackaged) {
+    appPath = appPath.replace("app.asar", "app.asar.unpacked");
+    process.chdir(appPath);
+  }
+
   const nextApp = next({ dev: false, dir: appPath });
   const handle = nextApp.getRequestHandler();
   await nextApp.prepare();
@@ -115,6 +130,16 @@ async function startProductionServer(): Promise<string> {
       reject(err);
     });
   });
+}
+
+export function getAppServerUrl(): string {
+  if (prodServer) {
+    const address = prodServer.address();
+    if (typeof address === "object" && address !== null) {
+      return `http://127.0.0.1:${address.port}`;
+    }
+  }
+  return NEXT_DEV_URL;
 }
 
 async function createWindow() {
@@ -301,6 +326,12 @@ app.whenReady().then(async () => {
     console.error("[Main] Failed to initialize license manager:", licErr);
   }
 
+  try {
+    startBackupScheduler(() => getAppServerUrl());
+  } catch (schedErr) {
+    console.error("[Main] Failed to initialize backup scheduler:", schedErr);
+  }
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow().catch((e) => console.error("[Main] Activate createWindow error:", e));
@@ -315,6 +346,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("will-quit", () => {
+  stopBackupScheduler();
   destroySystemTray();
   if (prodServer) {
     console.log("[Main] Closing production Next.js HTTP server...");

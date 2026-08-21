@@ -314,6 +314,59 @@ export function AnalyticsDashboard({ initialData }: AnalyticsDashboardProps) {
           </span>
         </div>
       </div>
+
+      {/* Most Used Prompts */}
+      <div className="p-5 rounded-2xl border border-border/80 bg-card/60 dark:bg-card/40 backdrop-blur-md shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-border/50 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Most Used Prompts</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Top performing prompts based on execution frequency.</p>
+            </div>
+          </div>
+        </div>
+        
+        {data.mostUsedPrompts && data.mostUsedPrompts.length > 0 ? (
+          <div className="space-y-2">
+            {data.mostUsedPrompts.map((p, idx) => (
+              <div key={p.id} className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-6 text-center font-mono text-sm font-bold text-muted-foreground">
+                    {idx + 1}.
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{p.title}</p>
+                    {p.last_used_at && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Last used: {new Date(p.last_used_at).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-bold text-foreground">{p.usage_count}</span>
+                  <span className="text-[11px] text-muted-foreground ml-1">uses</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 text-center space-y-3">
+            <div className="h-10 w-10 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground">
+              <BarChart3 className="h-5 w-5 opacity-50" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">No prompt usage recorded yet.</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                Execute or copy prompts to start tracking usage.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

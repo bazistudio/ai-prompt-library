@@ -9,6 +9,7 @@ import {
   getPromptsDb,
   getPromptByIdDb,
   getPromptStatsDb,
+  incrementPromptUsageDb,
   CreatePromptPayload,
   AddVersionPayload,
   UpdateMetaPayload,
@@ -40,6 +41,11 @@ export function toggleFavorite(promptId: string) {
 export function deletePrompt(promptId: string) {
   const db = getSQLiteDB();
   return deletePromptDb(db, promptId);
+}
+
+export function incrementPromptUsage(promptId: string) {
+  const db = getSQLiteDB();
+  return incrementPromptUsageDb(db, promptId);
 }
 
 export function getPrompts(options: GetPromptsOptions = {}) {

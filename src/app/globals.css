@@ -342,13 +342,34 @@ a:focus-visible {
 }
 
 .brand-text-gradient {
-  background: linear-gradient(to right, var(--color-foreground), var(--color-accent));
+  background-image: linear-gradient(to right, var(--color-foreground), var(--color-accent));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
+  display: inline-block;
 }
 
 .light .brand-text-gradient {
-  background: linear-gradient(to right, var(--color-foreground), var(--color-primary-hover));
+  background-image: linear-gradient(to right, #1a016f, #6366f1);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+.text-primary-foreground {
+  color: var(--color-primary-foreground-value) !important;
+}
+
+.bg-primary {
+  background-color: var(--color-primary-value) !important;
+  color: var(--color-primary-foreground-value) !important;
+}
+
+.bg-primary svg,
+.bg-primary span,
+.bg-primary p {
+  color: var(--color-primary-foreground-value) !important;
 }
 
 /* =========================================================

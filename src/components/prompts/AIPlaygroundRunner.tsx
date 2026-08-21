@@ -112,6 +112,15 @@ export function AIPlaygroundRunner({
       await navigator.clipboard.writeText(response.text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+
+      // Log usage
+      if (promptId) {
+        fetch(`/api/desktop-prompts/${promptId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "logUsage" }),
+        }).catch(() => {});
+      }
     } catch (err) {
       console.error("Failed to copy output:", err);
     }

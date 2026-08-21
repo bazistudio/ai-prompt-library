@@ -47,7 +47,7 @@ export function BatchExportImportTrigger({
         })
         .catch(() => {});
     }
-  }, [projects]);
+  }, []); // Removed 'projects' to fix infinite loop
 
   return (
     <>

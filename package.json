@@ -1,6 +1,6 @@
 {
   "name": "ai-prompt-library",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {
@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
+    "archiver": "^8.0.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.3",
     "electron-updater": "^6.3.9",
@@ -28,10 +29,12 @@
     "react-dom": "19.2.8",
     "recharts": "^3.10.1",
     "uuid": "^14.0.1",
+    "ws": "^8.21.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/archiver": "^8.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
@@ -56,6 +59,11 @@
     "directories": {
       "output": "release"
     },
+    "asarUnpack": [
+      ".next/**/*",
+      "node_modules/**/*",
+      "public/**/*"
+    ],
     "files": [
       "dist-electron/**/*",
       ".next/**/*",
@@ -64,6 +72,7 @@
       "! .next/diagnostics",
       "public/**/*",
       "build/**/*",
+      "node_modules/**/*",
       "package.json"
     ],
     "win": {

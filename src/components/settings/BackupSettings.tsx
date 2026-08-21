@@ -22,13 +22,24 @@ import {
 } from "lucide-react";
 import { getStoragePath, selectStorageFolder, openStorageFolder } from "@/services/storage/storageService";
 
-interface BackupItem {
+interface BackupHistoryRecord {
   id: string;
-  filename: string;
-  date: string;
-  sizeFormatted: string;
-  path: string;
-  promptsCount: number;
+  created_at: number;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  status: string;
+  backup_type: string;
+  error_message: string | null;
+  checksum: string | null;
+}
+
+function formatBytes(bytes: number) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 export function BackupSettings() {
@@ -40,19 +51,67 @@ export function BackupSettings() {
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
 
-  const [backupHistory, setBackupHistory] = useState<BackupItem[]>([]);
+  const [backupHistory, setBackupHistory] = useState<BackupHistoryRecord[]>([]);
 
   // Restore Confirmation Modal State
-  const [selectedBackupToRestore, setSelectedBackupToRestore] = useState<BackupItem | null>(null);
+  const [selectedBackupToRestore, setSelectedBackupToRestore] = useState<BackupHistoryRecord | null>(null);
   const [restoring, setRestoring] = useState(false);
 
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch("/api/backup");
+      const data = await res.json();
+      if (data.success && data.history) {
+        setBackupHistory(data.history);
+        const lastSuccess = data.history.find((h: BackupHistoryRecord) => h.status === "SUCCESS");
+        if (lastSuccess) {
+          const dt = new Date(lastSuccess.created_at);
+          setLastBackupTime(`Today, ${dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load backup history:", err);
+    }
+  };
+
   useEffect(() => {
+    // Fetch default storage path as fallback
     getStoragePath().then((path) => {
-      if (path) {
+      if (path && !backupPath) {
         setBackupPath(`${path}\\Backups`);
       }
     });
-  }, []);
+
+    // Fetch persisted backup settings
+    fetch("/api/backup/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.settings) {
+          setAutoBackupEnabled(data.settings.autoBackupEnabled);
+          setFrequency(data.settings.frequency);
+          setRetentionCount(data.settings.retentionCount);
+          if (data.settings.backupPath) {
+            setBackupPath(data.settings.backupPath);
+          }
+        }
+      })
+      .catch((err) => console.error("Failed to load backup settings:", err));
+
+    fetchHistory();
+  }, [backupPath]);
+
+  // Sync settings when they change (excluding initial load)
+  const saveSetting = async (key: string, value: any) => {
+    try {
+      await fetch("/api/backup/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+    } catch (err) {
+      console.error(`Failed to save ${key}:`, err);
+    }
+  };
 
   const handleSelectLocation = async () => {
     setActionLoading(true);
@@ -60,8 +119,10 @@ export function BackupSettings() {
     try {
       const res = await selectStorageFolder();
       if (!res.canceled && res.filePaths && res.filePaths.length > 0) {
-        setBackupPath(res.filePaths[0]);
-        setMessage({ type: "success", text: `Backup folder updated to: ${res.filePaths[0]}` });
+        const newPath = res.filePaths[0];
+        setBackupPath(newPath);
+        saveSetting("backupPath", newPath);
+        setMessage({ type: "success", text: `Backup folder updated to: ${newPath}` });
       }
     } catch (err: any) {
       setMessage({ type: "error", text: err.message || "Failed to select folder." });
@@ -81,26 +142,23 @@ export function BackupSettings() {
     setActionLoading(true);
     setMessage(null);
     try {
-      // Direct raw database download trigger
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.href = "/api/database/maintenance?download=true";
-      const nowStr = `Today, ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-      setLastBackupTime(nowStr);
-
-      const newBackup: BackupItem = {
-        id: `bk-${Date.now()}`,
-        filename: `AI-Prompt-Library-${new Date().toISOString().split("T")[0]}.zip`,
-        date: `${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} • ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
-        sizeFormatted: "128 MB",
-        path: `${backupPath}\\AI-Prompt-Library-${Date.now()}.zip`,
-        promptsCount: 43,
-      };
-
-      setBackupHistory((prev) => [newBackup, ...prev]);
-      setMessage({
-        type: "success",
-        text: "Database snapshot created and downloaded. Archive saved to backup catalog.",
-      });
+      const res = await fetch("/api/backup", { method: "POST" });
+      const data = await res.json();
+      
+      if (data.success) {
+        setMessage({
+          type: "success",
+          text: `Backup completed successfully. Saved to ${data.backup.file_name}`,
+        });
+      } else {
+        setMessage({
+          type: "error",
+          text: data.error || "Backup failed.",
+        });
+      }
+      
+      // Refresh history
+      fetchHistory();
     } catch (err: any) {
       setMessage({ type: "error", text: err.message || "Failed to initiate backup." });
     } finally {
@@ -113,13 +171,13 @@ export function BackupSettings() {
     setRestoring(true);
     setMessage(null);
 
-    // Phase A Frontend: Safely report backend dependency
+    // B2-A: Safely report that the actual Restore Engine is pending B2-D
     setTimeout(() => {
       setRestoring(false);
       setSelectedBackupToRestore(null);
       setMessage({
         type: "info",
-        text: `ZIP Archive restore pipeline is scheduled for Phase B backend validation. Please use raw SQLite snapshot migration in the interim.`,
+        text: `ZIP Archive restore pipeline with integrity verification is scheduled for Phase B2-D.`,
       });
     }, 1200);
   };
@@ -208,7 +266,10 @@ export function BackupSettings() {
         >
           <Toggle
             checked={autoBackupEnabled}
-            onChange={(v) => setAutoBackupEnabled(v)}
+            onChange={(v) => {
+              setAutoBackupEnabled(v);
+              saveSetting("autoBackupEnabled", v);
+            }}
             id="toggle-auto-backup"
           />
         </SettingRow>
@@ -216,7 +277,10 @@ export function BackupSettings() {
         <SettingRow title="Frequency" description="How often automatic snapshots should be created.">
           <Select
             value={frequency}
-            onChange={(v) => setFrequency(v)}
+            onChange={(v) => {
+              setFrequency(v);
+              saveSetting("frequency", v);
+            }}
             options={[
               { value: "daily", label: "Daily" },
               { value: "weekly", label: "Weekly" },
@@ -228,7 +292,10 @@ export function BackupSettings() {
         <SettingRow title="Keep backups" description="Number of recent archive copies to retain on disk.">
           <Select
             value={retentionCount}
-            onChange={(v) => setRetentionCount(v)}
+            onChange={(v) => {
+              setRetentionCount(v);
+              saveSetting("retentionCount", v);
+            }}
             options={[
               { value: "7", label: "7 Backups" },
               { value: "14", label: "14 Backups" },
@@ -291,18 +358,23 @@ export function BackupSettings() {
                 className="p-4 rounded-xl border border-border bg-card/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
               >
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-secondary border border-border flex items-center justify-center text-foreground shrink-0">
-                    <FileArchive className="h-4 w-4" />
+                  <div className={`h-9 w-9 rounded-lg border flex items-center justify-center shrink-0 ${
+                    item.status === "SUCCESS" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600" : "bg-destructive/10 border-destructive/20 text-destructive"
+                  }`}>
+                    {item.status === "SUCCESS" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
                   </div>
                   <div>
                     <div className="font-bold text-foreground flex items-center gap-2">
-                      <span>{item.filename}</span>
+                      <span>{item.file_name}</span>
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                        {item.sizeFormatted}
+                        {formatBytes(item.file_size)}
                       </span>
                     </div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">
-                      {item.date} • {item.promptsCount} Prompts Included
+                      {new Date(item.created_at).toLocaleString()} • {item.backup_type}
+                      {item.status === "FAILED" && item.error_message && (
+                        <span className="text-destructive ml-2 font-medium">({item.error_message})</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -316,7 +388,8 @@ export function BackupSettings() {
                   </button>
                   <button
                     onClick={() => setSelectedBackupToRestore(item)}
-                    className="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                    disabled={item.status !== "SUCCESS"}
+                    className="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-bold transition-all cursor-pointer shadow-2xs disabled:opacity-50"
                   >
                     Restore
                   </button>
@@ -354,15 +427,15 @@ export function BackupSettings() {
             <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground font-medium">Backup Archive:</span>
-                <span className="font-mono font-bold text-foreground">{selectedBackupToRestore.filename}</span>
+                <span className="font-mono font-bold text-foreground">{selectedBackupToRestore.file_name}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground font-medium">Created:</span>
-                <span className="text-foreground">{selectedBackupToRestore.date}</span>
+                <span className="text-foreground">{new Date(selectedBackupToRestore.created_at).toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground font-medium">Archive Size:</span>
-                <span className="text-foreground">{selectedBackupToRestore.sizeFormatted}</span>
+                <span className="text-foreground">{formatBytes(selectedBackupToRestore.file_size)}</span>
               </div>
             </div>
 

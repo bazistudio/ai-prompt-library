@@ -201,6 +201,23 @@ export function initializeSchema(db: Database) {
     }
   }
 
+  // Add usage_count and last_used_at columns to prompts (Phase B1 - additive, safe)
+  try {
+    db.exec(`ALTER TABLE prompts ADD COLUMN usage_count INTEGER NOT NULL DEFAULT 0;`);
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes('duplicate column name')) {
+      console.warn(`[DB] Migration warn: Could not add usage_count to prompts:`, err);
+    }
+  }
+
+  try {
+    db.exec(`ALTER TABLE prompts ADD COLUMN last_used_at INTEGER;`);
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes('duplicate column name')) {
+      console.warn(`[DB] Migration warn: Could not add last_used_at to prompts:`, err);
+    }
+  }
+
   // Indexes for categories & projects
   db.exec(`CREATE INDEX IF NOT EXISTS idx_prompts_category_id ON prompts(category_id);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_prompts_project_id ON prompts(project_id);`);
@@ -300,6 +317,21 @@ export function initializeSchema(db: Database) {
       test_cases TEXT NOT NULL DEFAULT '[]',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
+    );
+  `);
+
+  // 9. Backup History (Phase B2-B)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS backup_history (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      file_name TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      file_size INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      backup_type TEXT NOT NULL,
+      error_message TEXT,
+      checksum TEXT
     );
   `);
 }

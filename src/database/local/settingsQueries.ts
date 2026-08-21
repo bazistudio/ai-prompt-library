@@ -33,4 +33,8 @@ export const SETTING_KEYS = {
   REQUIRE_LOCK_ON_STARTUP: "requireLockOnStartup",
   APP_LOCK_FAILED_ATTEMPTS: "appLockFailedAttempts",
   APP_LOCK_LOCKOUT_UNTIL: "appLockLockoutUntil",
+  BACKUP_AUTO_ENABLED: "backupAutoEnabled",
+  BACKUP_FREQUENCY: "backupFrequency",
+  BACKUP_RETENTION_COUNT: "backupRetentionCount",
+  BACKUP_LOCATION: "backupLocation",
 };

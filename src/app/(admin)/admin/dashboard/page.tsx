@@ -14,29 +14,61 @@ export default function AdminDashboardPage() {
         <p><strong>Note:</strong> Super Admin authentication and authorization are not enforced in this Phase A UI scaffold. No backend queries are executed.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="p-6 rounded-2xl border border-border bg-card flex flex-col items-center text-center space-y-2">
-          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2">
-            <Users className="h-6 w-6" />
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        <div className="p-4 rounded-xl border border-border bg-card flex flex-col items-center text-center space-y-2 lg:col-span-1">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-1">
+            <Users className="h-5 w-5" />
           </div>
-          <span className="text-3xl font-extrabold text-foreground">0</span>
-          <span className="text-sm font-medium text-muted-foreground">Total Users</span>
+          <span className="text-2xl font-extrabold text-foreground">0</span>
+          <span className="text-xs font-medium text-muted-foreground">Total Users</span>
         </div>
 
-        <div className="p-6 rounded-2xl border border-border bg-card flex flex-col items-center text-center space-y-2">
-          <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center text-success mb-2">
-            <Database className="h-6 w-6" />
+        <div className="p-4 rounded-xl border border-border bg-card flex flex-col items-center text-center space-y-2 lg:col-span-1">
+          <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center text-success mb-1">
+            <Users className="h-5 w-5" />
           </div>
-          <span className="text-3xl font-extrabold text-foreground">0 MB</span>
-          <span className="text-sm font-medium text-muted-foreground">Database Size</span>
+          <span className="text-2xl font-extrabold text-foreground">0</span>
+          <span className="text-xs font-medium text-muted-foreground">Active Users</span>
         </div>
 
-        <div className="p-6 rounded-2xl border border-border bg-card flex flex-col items-center text-center space-y-2">
-          <div className="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center text-warning mb-2">
-            <Terminal className="h-6 w-6" />
+        <div className="p-4 rounded-xl border border-border bg-card flex flex-col items-center text-center space-y-2 lg:col-span-1">
+          <div className="h-10 w-10 rounded-full bg-info/10 flex items-center justify-center text-info mb-1">
+            <Users className="h-5 w-5" />
           </div>
-          <span className="text-3xl font-extrabold text-foreground">0</span>
-          <span className="text-sm font-medium text-muted-foreground">System Errors</span>
+          <span className="text-2xl font-extrabold text-foreground">0</span>
+          <span className="text-xs font-medium text-muted-foreground">Demo Accounts</span>
+        </div>
+
+        <div className="p-4 rounded-xl border border-border bg-card flex flex-col items-center text-center space-y-2 lg:col-span-1">
+          <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500 mb-1">
+            <Database className="h-5 w-5" />
+          </div>
+          <span className="text-2xl font-extrabold text-foreground">0</span>
+          <span className="text-xs font-medium text-muted-foreground">Total Prompts</span>
+        </div>
+
+        <div className="p-4 rounded-xl border border-border bg-card flex flex-col items-center text-center space-y-2 lg:col-span-1">
+          <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-1">
+            <Database className="h-5 w-5" />
+          </div>
+          <span className="text-2xl font-extrabold text-foreground">0</span>
+          <span className="text-xs font-medium text-muted-foreground">Prompts Today</span>
+        </div>
+
+        <div className="p-4 rounded-xl border border-border bg-card flex flex-col items-center text-center space-y-2 lg:col-span-1">
+          <div className="h-10 w-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500 mb-1">
+            <Database className="h-5 w-5" />
+          </div>
+          <span className="text-2xl font-extrabold text-foreground">0 MB</span>
+          <span className="text-xs font-medium text-muted-foreground">DB Size</span>
+        </div>
+
+        <div className="p-4 rounded-xl border border-border bg-card flex flex-col items-center text-center space-y-2 lg:col-span-1">
+          <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center text-warning mb-1">
+            <Terminal className="h-5 w-5" />
+          </div>
+          <span className="text-2xl font-extrabold text-foreground">0</span>
+          <span className="text-xs font-medium text-muted-foreground">System Errors</span>
         </div>
       </div>
     </div>

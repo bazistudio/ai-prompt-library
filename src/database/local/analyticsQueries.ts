@@ -33,6 +33,12 @@ export interface AnalyticsSummary {
     deepVersions: number; // 4+ versions
   };
   recentAuditCount: number;
+  mostUsedPrompts?: {
+    id: string;
+    title: string;
+    usage_count: number;
+    last_used_at: number | null;
+  }[];
 }
 
 const CATEGORY_COLORS = [
@@ -149,6 +155,20 @@ export function getAnalyticsSummaryDb(db: Database): AnalyticsSummary {
     WHERE is_archived = 0
   `).get() as { single_count: number; moderate_count: number; deep_count: number } | undefined;
 
+  // 6. Most Used Prompts (Phase B1)
+  let mostUsedPrompts = [];
+  try {
+    mostUsedPrompts = db.prepare(`
+      SELECT id, title, usage_count, last_used_at
+      FROM prompts
+      WHERE is_archived = 0 AND usage_count > 0
+      ORDER BY usage_count DESC, last_used_at DESC
+      LIMIT 5
+    `).all() as any[];
+  } catch (err) {
+    // If usage_count doesn't exist yet, return empty array
+  }
+
   return {
     totalPrompts,
     totalFavorites,
@@ -163,5 +183,6 @@ export function getAnalyticsSummaryDb(db: Database): AnalyticsSummary {
       deepVersions: versionDistRows?.deep_count || 0,
     },
     recentAuditCount,
+    mostUsedPrompts,
   };
 }

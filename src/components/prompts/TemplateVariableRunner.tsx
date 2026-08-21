@@ -84,6 +84,14 @@ export function TemplateVariableRunner({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
 
+      if (promptId) {
+        fetch(`/api/desktop-prompts/${promptId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "logUsage" }),
+        }).catch(() => {});
+      }
+
       // Record audit event asynchronously (non-blocking)
       fetch("/api/audit-logs", {
         method: "POST",
