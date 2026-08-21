@@ -28,12 +28,24 @@ export function AccountSettings() {
   const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [passwordLoading, setPasswordLoading] = useState(false);
 
+  // Remove Password Modal State
+  const [showRemovePasswordModal, setShowRemovePasswordModal] = useState(false);
+  const [removePasswordInput, setRemovePasswordInput] = useState("");
+  const [removePasswordMsg, setRemovePasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [removePasswordLoading, setRemovePasswordLoading] = useState(false);
+
   // PIN Setup Modal State
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinPassword, setPinPassword] = useState("");
   const [newPin, setNewPin] = useState("");
   const [pinMsg, setPinMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [pinLoading, setPinLoading] = useState(false);
+
+  // Remove PIN Modal State
+  const [showRemovePinModal, setShowRemovePinModal] = useState(false);
+  const [removePinInput, setRemovePinInput] = useState("");
+  const [removePinMsg, setRemovePinMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [removePinLoading, setRemovePinLoading] = useState(false);
 
   // Recovery Key Display Modal
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
@@ -73,7 +85,7 @@ export function AccountSettings() {
             setProfile(data.user);
           }
         })
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => setLoading(false));
     }
 
@@ -185,6 +197,64 @@ export function AccountSettings() {
     }
   };
 
+  const handleRemovePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRemovePasswordMsg(null);
+
+    if (!removePasswordInput) {
+      setRemovePasswordMsg({ type: "error", text: "Current password is required." });
+      return;
+    }
+
+    setRemovePasswordLoading(true);
+    try {
+      if (window.electronAPI?.security) {
+        const res = await window.electronAPI.security.removePassword(removePasswordInput);
+        if (res.success) {
+          setRemovePasswordMsg({ type: "success", text: "Password removed successfully!" });
+          setRemovePasswordInput("");
+          setTimeout(() => setShowRemovePasswordModal(false), 1200);
+          await fetchSecurityStatus();
+        } else {
+          setRemovePasswordMsg({ type: "error", text: res.error || "Failed to remove password." });
+        }
+      }
+    } catch (err: any) {
+      setRemovePasswordMsg({ type: "error", text: err?.message || "An error occurred." });
+    } finally {
+      setRemovePasswordLoading(false);
+    }
+  };
+
+  const handleRemovePinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRemovePinMsg(null);
+
+    if (!removePinInput) {
+      setRemovePinMsg({ type: "error", text: "Current PIN or password is required." });
+      return;
+    }
+
+    setRemovePinLoading(true);
+    try {
+      if (window.electronAPI?.security) {
+        const res = await window.electronAPI.security.removePin(removePinInput);
+        if (res.success) {
+          setRemovePinMsg({ type: "success", text: "6-Digit PIN removed successfully!" });
+          setRemovePinInput("");
+          setTimeout(() => setShowRemovePinModal(false), 1200);
+          await fetchSecurityStatus();
+        } else {
+          setRemovePinMsg({ type: "error", text: res.error || "Failed to remove PIN." });
+        }
+      }
+    } catch (err: any) {
+      setRemovePinMsg({ type: "error", text: err?.message || "An error occurred." });
+    } finally {
+      setRemovePinLoading(false);
+    }
+  };
+
   const handleGenerateRecoveryKey = async () => {
     setRecoveryLoading(true);
     try {
@@ -290,16 +360,28 @@ export function AccountSettings() {
           }
         >
           {hasPassword ? (
-            <button
-              onClick={() => {
-                setGuardWarning(null);
-                setShowPasswordModal(true);
-              }}
-              className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
-            >
-              <KeyRound className="h-3.5 w-3.5 text-primary" />
-              <span>Change Password</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setGuardWarning(null);
+                  setShowPasswordModal(true);
+                }}
+                className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <KeyRound className="h-3.5 w-3.5 text-primary" />
+                <span>Change Password</span>
+              </button>
+              <button
+                onClick={() => {
+                  setRemovePasswordMsg(null);
+                  setRemovePasswordInput("");
+                  setShowRemovePasswordModal(true);
+                }}
+                className="px-3.5 py-1.5 rounded-lg border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <span>Remove Password</span>
+              </button>
+            </div>
           ) : (
             <button
               onClick={() => {
@@ -314,6 +396,56 @@ export function AccountSettings() {
           )}
         </SettingRow>
 
+        {/* PIN Section (Always Visible) */}
+        <SettingRow
+          title="6-Digit PIN"
+          description={
+            secStatus?.hasPin
+              ? "6-digit numeric PIN is configured and active."
+              : "No 6-digit PIN has been configured yet."
+          }
+        >
+          {secStatus?.hasPin ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setPinMsg(null);
+                  setPinPassword("");
+                  setNewPin("");
+                  setShowPinModal(true);
+                }}
+                className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <Lock className="h-3.5 w-3.5 text-primary" />
+                <span>Change PIN</span>
+              </button>
+              <button
+                onClick={() => {
+                  setRemovePinMsg(null);
+                  setRemovePinInput("");
+                  setShowRemovePinModal(true);
+                }}
+                className="px-3.5 py-1.5 rounded-lg border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <span>Remove PIN</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setPinMsg(null);
+                setPinPassword("");
+                setNewPin("");
+                setShowPinModal(true);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
+            >
+              <Lock className="h-3.5 w-3.5" />
+              <span>Setup PIN</span>
+            </button>
+          )}
+        </SettingRow>
+
         {/* Application Lock Section */}
         <SettingRow
           title="Application Lock"
@@ -322,14 +454,12 @@ export function AccountSettings() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => handleToggleLock(!secStatus?.enabled)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                secStatus?.enabled ? "bg-primary" : "bg-muted"
-              }`}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${secStatus?.enabled ? "bg-primary" : "bg-muted"
+                }`}
             >
               <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${
-                  secStatus?.enabled ? "translate-x-5" : "translate-x-0"
-                }`}
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${secStatus?.enabled ? "translate-x-5" : "translate-x-0"
+                  }`}
               />
             </button>
             <span className="text-xs font-semibold text-foreground">
@@ -338,46 +468,35 @@ export function AccountSettings() {
           </div>
         </SettingRow>
 
-        {secStatus?.enabled && (
-          <>
-            <SettingRow title="Lock Method" description="Choose whether to unlock using your Application Password or a 6-Digit PIN.">
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-1.5 text-xs text-foreground font-semibold cursor-pointer">
-                  <input
-                    type="radio"
-                    name="lockMethod"
-                    checked={secStatus.method === "password"}
-                    onChange={() => handleSetLockMethod("password")}
-                    className="accent-primary"
-                  />
-                  Password
-                </label>
+        {/* Lock Method Selection (when lock is ON and both credentials exist) */}
+        {secStatus?.enabled && (hasPassword || secStatus.hasPin) && (
+          <SettingRow title="Lock Method" description="Choose whether to unlock using your Application Password or 6-Digit PIN.">
+            <div className="flex items-center gap-4">
+              <label className={`flex items-center gap-1.5 text-xs font-semibold cursor-pointer ${!hasPassword ? "opacity-40 cursor-not-allowed" : "text-foreground"}`}>
+                <input
+                  type="radio"
+                  name="lockMethod"
+                  disabled={!hasPassword}
+                  checked={secStatus.method === "password"}
+                  onChange={() => handleSetLockMethod("password")}
+                  className="accent-primary"
+                />
+                Password {hasPassword ? "" : "(Not Set)"}
+              </label>
 
-                <label className="flex items-center gap-1.5 text-xs text-foreground font-semibold cursor-pointer">
-                  <input
-                    type="radio"
-                    name="lockMethod"
-                    checked={secStatus.method === "pin"}
-                    onChange={() => handleSetLockMethod("pin")}
-                    className="accent-primary"
-                  />
-                  PIN {secStatus.hasPin ? "(Configured)" : "(Not Set)"}
-                </label>
-              </div>
-            </SettingRow>
-
-            {!secStatus.hasPin && (
-              <SettingRow title="Configure 6-Digit PIN" description="Set up a 6-digit numerical PIN for quick unlocking.">
-                <button
-                  onClick={() => setShowPinModal(true)}
-                  className="px-3 py-1.5 rounded-lg bg-secondary text-foreground hover:bg-muted text-xs font-semibold border border-border cursor-pointer flex items-center gap-1.5"
-                >
-                  <Lock className="h-3.5 w-3.5" />
-                  <span>Setup PIN</span>
-                </button>
-              </SettingRow>
-            )}
-          </>
+              <label className={`flex items-center gap-1.5 text-xs font-semibold cursor-pointer ${!secStatus.hasPin ? "opacity-40 cursor-not-allowed" : "text-foreground"}`}>
+                <input
+                  type="radio"
+                  name="lockMethod"
+                  disabled={!secStatus.hasPin}
+                  checked={secStatus.method === "pin"}
+                  onChange={() => handleSetLockMethod("pin")}
+                  className="accent-primary"
+                />
+                PIN {secStatus.hasPin ? "" : "(Not Set)"}
+              </label>
+            </div>
+          </SettingRow>
         )}
 
         {/* Emergency Recovery Key Section */}
@@ -419,11 +538,10 @@ export function AccountSettings() {
 
             {passwordMsg && (
               <div
-                className={`p-3 rounded-xl text-xs ${
-                  passwordMsg.type === "success"
+                className={`p-3 rounded-xl text-xs ${passwordMsg.type === "success"
                     ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
                     : "bg-danger/10 text-danger border border-danger/20"
-                }`}
+                  }`}
               >
                 {passwordMsg.text}
               </div>
@@ -517,36 +635,39 @@ export function AccountSettings() {
 
             {pinMsg && (
               <div
-                className={`p-3 rounded-xl text-xs ${
-                  pinMsg.type === "success"
+                className={`p-3 rounded-xl text-xs ${pinMsg.type === "success"
                     ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
                     : "bg-danger/10 text-danger border border-danger/20"
-                }`}
+                  }`}
               >
                 {pinMsg.text}
               </div>
             )}
 
             <form onSubmit={handleSetupPinSubmit} className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Verify Password</label>
-                <input
-                  type="password"
-                  value={pinPassword}
-                  onChange={(e) => setPinPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
-                />
-              </div>
+              {hasPassword && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Verify Current Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={pinPassword}
+                    onChange={(e) => setPinPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
+                  />
+                </div>
+              )}
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">New 6-Digit PIN</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">6-Digit Numerical PIN</label>
                 <input
                   type="password"
+                  required
                   maxLength={6}
                   value={newPin}
                   onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
-                  placeholder="123456"
+                  placeholder="••••••"
                   className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs text-center font-mono tracking-widest"
                 />
               </div>
@@ -565,6 +686,116 @@ export function AccountSettings() {
                   className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors cursor-pointer flex items-center gap-1.5"
                 >
                   {pinLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Save PIN"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Password Modal */}
+      {showRemovePasswordModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-border shadow-2xl space-y-4 text-left">
+            <h3 className="text-base font-bold text-foreground">Remove Application Password</h3>
+            <p className="text-xs text-muted-foreground">
+              Enter your current password to authorize removing your application password.
+            </p>
+
+            {removePasswordMsg && (
+              <div
+                className={`p-3 rounded-xl text-xs ${
+                  removePasswordMsg.type === "success"
+                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                    : "bg-danger/10 text-danger border border-danger/20"
+                }`}
+              >
+                {removePasswordMsg.text}
+              </div>
+            )}
+
+            <form onSubmit={handleRemovePasswordSubmit} className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Current Password</label>
+                <input
+                  type="password"
+                  required
+                  value={removePasswordInput}
+                  onChange={(e) => setRemovePasswordInput(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRemovePasswordModal(false)}
+                  className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={removePasswordLoading}
+                  className="px-4 py-1.5 rounded-lg bg-danger text-white text-xs font-bold hover:bg-danger/90 transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  {removePasswordLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Remove Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Remove PIN Modal */}
+      {showRemovePinModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-border shadow-2xl space-y-4 text-left">
+            <h3 className="text-base font-bold text-foreground">Remove 6-Digit PIN</h3>
+            <p className="text-xs text-muted-foreground">
+              Enter your current 6-digit PIN (or application password) to confirm removing your PIN.
+            </p>
+
+            {removePinMsg && (
+              <div
+                className={`p-3 rounded-xl text-xs ${
+                  removePinMsg.type === "success"
+                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                    : "bg-danger/10 text-danger border border-danger/20"
+                }`}
+              >
+                {removePinMsg.text}
+              </div>
+            )}
+
+            <form onSubmit={handleRemovePinSubmit} className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Current PIN or Password</label>
+                <input
+                  type="password"
+                  required
+                  value={removePinInput}
+                  onChange={(e) => setRemovePinInput(e.target.value)}
+                  placeholder="••••••"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRemovePinModal(false)}
+                  className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={removePinLoading}
+                  className="px-4 py-1.5 rounded-lg bg-danger text-white text-xs font-bold hover:bg-danger/90 transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  {removePinLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Remove PIN"}
                 </button>
               </div>
             </form>

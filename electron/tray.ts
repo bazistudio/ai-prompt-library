@@ -9,11 +9,12 @@ let tray: Tray | null = null;
  * for the system tray icon fallback if no asset file is found on disk.
  */
 function createDefaultTrayIcon(): Electron.NativeImage {
-  // Try standard icon locations
+  // Try standard icon locations in development and packaged production
   const possiblePaths = [
-    path.join(__dirname, "../public/icon.png"),
-    path.join(__dirname, "../public/favicon.ico"),
-    path.join(app.getAppPath(), "public/icon.png"),
+    path.join(process.resourcesPath || "", "build/icon.ico"),
+    path.join(process.resourcesPath || "", "build/icon.png"),
+    path.join(__dirname, "../build/icon.ico"),
+    path.join(__dirname, "../build/icon.png"),
   ];
 
   for (const p of possiblePaths) {
@@ -24,14 +25,14 @@ function createDefaultTrayIcon(): Electron.NativeImage {
           return img.resize({ width: 16, height: 16 });
         }
       } catch {
-        // Continue to fallback
+        // Continue to next path
       }
     }
   }
 
-  // Generate 16x16 standard native image
-  const img = nativeImage.createEmpty();
-  return img;
+  // 16x16 Indigo base64 PNG icon that works directly in memory without disk access
+  const fallbackBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVR42mNk+M9QzwADjEwMDAwsDAwM/xmIAyMGjBowGgZgGf7//0+sE0Z145AGAPQ4GkE5yGjUAAAAAElFTkSuQmCC";
+  return nativeImage.createFromDataURL(fallbackBase64);
 }
 
 export function setupSystemTray(
@@ -44,6 +45,10 @@ export function setupSystemTray(
 
   try {
     const icon = createDefaultTrayIcon();
+    if (icon.isEmpty()) {
+      console.warn("[Tray] No valid icon asset found on disk. Skipping system tray setup to prevent OS shell crash.");
+      return null;
+    }
     tray = new Tray(icon);
     tray.setToolTip("AI Prompt Library - Offline Studio");
 

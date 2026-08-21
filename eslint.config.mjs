@@ -20,6 +20,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "dist-electron/**",
     "next-env.d.ts",
+    "scratch/**",
   ]),
 ]);
 

@@ -71,7 +71,7 @@ function setSecuritySetting(key: string, value: string | null): void {
 export function generateRecoveryKey(): string {
   const chars: string[] = [];
   const alphabetLen = RECOVERY_KEY_ALPHABET.length;
-  
+
   // Use crypto.randomBytes for entropy
   const randomBytes = crypto.randomBytes(24);
   for (let i = 0; i < 24; i++) {
@@ -88,7 +88,7 @@ export function generateRecoveryKey(): string {
 export function getLockoutRemainingSeconds(): number {
   const lockoutUntilStr = getSecuritySetting(SETTING_KEYS.APP_LOCK_LOCKOUT_UNTIL);
   if (!lockoutUntilStr) return 0;
-  
+
   const lockoutUntil = parseInt(lockoutUntilStr, 10);
   const now = Date.now();
   if (now >= lockoutUntil) {
@@ -101,7 +101,7 @@ export function getLockoutRemainingSeconds(): number {
 function calculateCooldownMs(failedCount: number): number {
   if (failedCount >= 15) return 10 * 60 * 1000; // 10 minutes
   if (failedCount >= 10) return 2 * 60 * 1000;  // 2 minutes
-  if (failedCount >= 5)  return 30 * 1000;       // 30 seconds
+  if (failedCount >= 5) return 30 * 1000;       // 30 seconds
   return 0;
 }
 
@@ -187,7 +187,7 @@ export async function unlockApplication(input: string): Promise<{ success: boole
   }
 
   const method = getSecuritySetting(SETTING_KEYS.APP_LOCK_METHOD) || "password";
-  
+
   let targetHash: string | null = null;
   if (method === "pin") {
     targetHash = getSecuritySetting(SETTING_KEYS.APP_LOCK_PIN_HASH);
@@ -256,6 +256,64 @@ export async function setupOrUpdatePin(password: string, pin: string): Promise<{
   const pinHash = await bcrypt.hash(pin, 10);
   setSecuritySetting(SETTING_KEYS.APP_LOCK_PIN_HASH, pinHash);
   setSecuritySetting(SETTING_KEYS.APP_LOCK_METHOD, "pin");
+  return { success: true };
+}
+
+export async function removePin(currentPinOrPassword: string): Promise<{ success: boolean; error?: string }> {
+  if (!currentPinOrPassword) {
+    return { success: false, error: "Current PIN or password is required to remove PIN." };
+  }
+
+  const existingPinHash = getSecuritySetting(SETTING_KEYS.APP_LOCK_PIN_HASH);
+  const existingPasswordHash = getSecuritySetting(SETTING_KEYS.APP_LOCK_PASSWORD_HASH);
+
+  if (!existingPinHash) {
+    return { success: true };
+  }
+
+  let isValid = false;
+  isValid = await bcrypt.compare(currentPinOrPassword, existingPinHash);
+
+  if (!isValid && existingPasswordHash) {
+    isValid = await bcrypt.compare(currentPinOrPassword, existingPasswordHash);
+  }
+
+  if (!isValid) {
+    recordFailedAttempt();
+    return { success: false, error: "Verification failed. Incorrect PIN or password." };
+  }
+
+  setSecuritySetting(SETTING_KEYS.APP_LOCK_PIN_HASH, null);
+  setSecuritySetting(SETTING_KEYS.APP_LOCK_METHOD, "password");
+  return { success: true };
+}
+
+export async function removePassword(currentPassword: string): Promise<{ success: boolean; error?: string }> {
+  if (!currentPassword) {
+    return { success: false, error: "Current password is required to remove password." };
+  }
+
+  const existingPasswordHash = getSecuritySetting(SETTING_KEYS.APP_LOCK_PASSWORD_HASH);
+  if (!existingPasswordHash) {
+    return { success: true };
+  }
+
+  const isValid = await bcrypt.compare(currentPassword, existingPasswordHash);
+  if (!isValid) {
+    recordFailedAttempt();
+    return { success: false, error: "Verification failed. Current password is incorrect." };
+  }
+
+  setSecuritySetting(SETTING_KEYS.APP_LOCK_PASSWORD_HASH, null);
+
+  const hasPin = Boolean(getSecuritySetting(SETTING_KEYS.APP_LOCK_PIN_HASH));
+  if (!hasPin) {
+    setSecuritySetting(SETTING_KEYS.APP_LOCK_ENABLED, "0");
+    isLockedState = false;
+  } else {
+    setSecuritySetting(SETTING_KEYS.APP_LOCK_METHOD, "pin");
+  }
+
   return { success: true };
 }
 

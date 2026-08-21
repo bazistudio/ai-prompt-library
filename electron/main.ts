@@ -13,6 +13,8 @@ import {
   unlockApplication,
   setupOrUpdatePassword,
   setupOrUpdatePin,
+  removePin,
+  removePassword,
   generateAndSaveRecoveryKey,
   recoverAndResetCredentials,
   toggleAppLock,
@@ -20,6 +22,8 @@ import {
   isAppLocked,
   setAppLockedState,
 } from "./securityManager";
+
+console.log("[BOOT-01] Electron process started");
 
 process.env.IS_ELECTRON = "true";
 process.env.NEXT_PUBLIC_IS_ELECTRON = "true";
@@ -36,36 +40,36 @@ process.on("unhandledRejection", (reason) => {
   console.error("[Main] Unhandled Rejection:", reason);
 });
 
-// Enforce single-instance lock for production packaged builds
-if (app.isPackaged) {
-  const gotLock = app.requestSingleInstanceLock();
-  if (!gotLock) {
-    console.log("[Main] Another instance is already running. Quitting.");
-    app.quit();
-    process.exit(0);
-  }
+// Enforce single-instance lock across both dev and production
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  console.log("[Main] Another instance is already running. Quitting.");
+  app.quit();
+  process.exit(0);
 }
 
 app.on("second-instance", () => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
     mainWindow.focus();
   } else {
     createWindow().catch((e) => console.error("[Main] second-instance createWindow error:", e));
   }
 });
 
-async function waitForDevServer(targetUrl: string, retries = 60, delayMs = 1000): Promise<boolean> {
+async function waitForHttpServer(targetUrl: string, retries = 30, delayMs = 500): Promise<boolean> {
   const checkUrl = targetUrl.replace("localhost", "127.0.0.1");
   console.log(`[Main] Waiting for HTTP server at ${checkUrl}...`);
   for (let i = 0; i < retries; i++) {
     try {
       const isReady = await new Promise<boolean>((resolve) => {
         const req = http.get(checkUrl, (res) => {
+          res.resume(); // Ensure stream is consumed
           resolve((res.statusCode || 500) < 500);
         });
         req.on("error", () => resolve(false));
-        req.setTimeout(800, () => {
+        req.setTimeout(4000, () => {
           req.destroy();
           resolve(false);
         });
@@ -90,46 +94,70 @@ async function startProductionServer(): Promise<string> {
     }
   }
 
-  console.log("[Main] Initializing production Next.js server...");
-  let appPath = app.getAppPath();
-  
-  if (app.isPackaged) {
-    appPath = appPath.replace("app.asar", "app.asar.unpacked");
-    process.chdir(appPath);
+  const appPath = app.getAppPath();
+  console.log(`[BOOT-09] Next.js server initialization (root dir: ${appPath})`);
+
+  try {
+    const nextApp = next({ dev: false, dir: appPath });
+    const handle = nextApp.getRequestHandler();
+
+    // Bound nextApp.prepare() with a timeout
+    await Promise.race([
+      nextApp.prepare(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Next.js app.prepare() timed out after 30 seconds")), 30000)
+      ),
+    ]);
+
+    return await new Promise<string>((resolve, reject) => {
+      const server = http.createServer((req, res) => {
+        handle(req, res).catch((hErr) => {
+          console.error(`[Main HTTP] Request error for ${req.url}:`, hErr);
+          if (!res.headersSent) {
+            res.statusCode = 500;
+            res.end("Server Error");
+          }
+        });
+      });
+
+      const timeout = setTimeout(() => {
+        reject(new Error("Production Next.js HTTP server.listen timed out after 30 seconds"));
+      }, 30000);
+
+      server.listen(0, "127.0.0.1", () => {
+        clearTimeout(timeout);
+        const address = server.address();
+        if (typeof address === "object" && address !== null) {
+          prodServer = server;
+          const url = `http://127.0.0.1:${address.port}`;
+          console.log(`[Main] Production Next.js server is ready at ${url}`);
+          resolve(url);
+        } else {
+          reject(new Error("Failed to resolve production Next.js server port"));
+        }
+      });
+
+      server.on("error", (err) => {
+        clearTimeout(timeout);
+        console.error("[Main] Production Next.js server error event:", err);
+        reject(err);
+      });
+
+      server.on("close", () => {
+        console.log("[Main] Production Next.js HTTP server close event fired.");
+      });
+    });
+  } catch (err: any) {
+    console.error("[Main] Production Next.js server startup failure:", {
+      name: err?.name,
+      message: err?.message,
+      stack: err?.stack,
+      appPath,
+      isPackaged: app.isPackaged,
+      resourcesPath: process.resourcesPath,
+    });
+    throw err;
   }
-
-  const nextApp = next({ dev: false, dir: appPath });
-  const handle = nextApp.getRequestHandler();
-  await nextApp.prepare();
-
-  return new Promise((resolve, reject) => {
-    const server = http.createServer((req, res) => {
-      handle(req, res);
-    });
-
-    const timeout = setTimeout(() => {
-      reject(new Error("Production Next.js server start timed out after 30 seconds"));
-    }, 30000);
-
-    server.listen(0, "127.0.0.1", () => {
-      clearTimeout(timeout);
-      const address = server.address();
-      if (typeof address === "object" && address !== null) {
-        prodServer = server;
-        const url = `http://127.0.0.1:${address.port}`;
-        console.log(`[Main] Production Next.js server is ready at ${url}`);
-        resolve(url);
-      } else {
-        reject(new Error("Failed to resolve production Next.js server port"));
-      }
-    });
-
-    server.on("error", (err) => {
-      clearTimeout(timeout);
-      console.error("[Main] Production Next.js server error:", err);
-      reject(err);
-    });
-  });
 }
 
 export function getAppServerUrl(): string {
@@ -143,6 +171,7 @@ export function getAppServerUrl(): string {
 }
 
 async function createWindow() {
+  console.log("[BOOT-04] BrowserWindow creation");
   let targetUrl = NEXT_DEV_URL;
 
   mainWindow = new BrowserWindow({
@@ -150,7 +179,7 @@ async function createWindow() {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    show: true,
+    show: true, // Reveal immediately on launch matching v1.0.2 behavior
     title: "AI Prompt Library",
     autoHideMenuBar: false,
     webPreferences: {
@@ -164,13 +193,17 @@ async function createWindow() {
 
   setupApplicationMenu(mainWindow);
 
-  mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription) => {
-    console.error(`[Main] Window failed to load: ${errorDescription} (${errorCode})`);
-    if (errorCode !== -3 && mainWindow && !mainWindow.isDestroyed()) {
+  mainWindow.webContents.on("did-finish-load", () => {
+    console.log("[BOOT-11] renderer finished loading");
+  });
+
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    console.error(`[Main] Window failed to load: ${errorDescription} (${errorCode}) at ${validatedURL} (isMainFrame: ${isMainFrame})`);
+    if (errorCode !== -3 && mainWindow && !mainWindow.isDestroyed() && isMainFrame) {
       console.log("[Main] Retrying window load in 1.5s...");
       setTimeout(() => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.loadURL(targetUrl).catch(() => {});
+          mainWindow.loadURL(targetUrl).catch(() => { });
         }
       }, 1500);
     }
@@ -184,11 +217,6 @@ async function createWindow() {
     return { action: "deny" };
   });
 
-  if (mainWindow) {
-    mainWindow.show();
-    mainWindow.focus();
-  }
-
   if (app.isPackaged === false) {
     console.log("[Main] Development Mode (app.isPackaged === false)");
     targetUrl = `${NEXT_DEV_URL}/dashboard`;
@@ -196,27 +224,44 @@ async function createWindow() {
     // Instantly reveal window with dark loading placeholder
     mainWindow.loadURL(
       `data:text/html,<html><head><title>AI Prompt Library</title></head><body style="background:%23090d16;color:%236366f1;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="font-size:24px;font-weight:bold;margin-bottom:8px;">AI Prompt Library</div><div style="font-size:13px;color:%2394a3b8;">Initializing local development server...</div></body></html>`
-    ).catch(() => {});
+    ).catch(() => { });
 
     // Poll dev server in background and navigate when ready
-    waitForDevServer(NEXT_DEV_URL, 60, 500).then(() => {
+    waitForHttpServer(`${NEXT_DEV_URL}/dashboard`, 60, 500).then((ready) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        console.log(`[Main] Loading dev window URL: ${targetUrl}`);
-        mainWindow.loadURL(targetUrl).catch((err) => {
-          console.error("[Main] Dev window loadURL error:", err);
-        });
+        if (ready) {
+          console.log(`[BOOT-10] BrowserWindow loadURL: ${targetUrl}`);
+          mainWindow.loadURL(targetUrl).catch((err) => {
+            console.error("[Main] Dev window loadURL error:", err);
+          });
+        } else {
+          console.error("[Main] Dev server failed to respond within timeout.");
+        }
       }
     });
   } else {
     console.log("[Main] Production Mode (app.isPackaged === true)");
+    // Show dark loading placeholder while Next.js prepares
+    mainWindow.loadURL(
+      `data:text/html,<html><head><title>AI Prompt Library</title></head><body style="background:%23090d16;color:%236366f1;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="font-size:24px;font-weight:bold;margin-bottom:8px;">AI Prompt Library</div><div style="font-size:13px;color:%2394a3b8;">Starting local engine...</div></body></html>`
+    ).catch(() => { });
+
     try {
       const baseUrl = await startProductionServer();
       targetUrl = `${baseUrl}/dashboard`;
-      await waitForDevServer(baseUrl, 10, 500);
-      console.log(`[Main] Loading production window URL: ${targetUrl}`);
+      console.log(`[BOOT-10] BrowserWindow loadURL: ${targetUrl}`);
       await mainWindow.loadURL(targetUrl);
-    } catch (err) {
+    } catch (err: any) {
       console.error("[Main] Failed to start production server:", err);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const errorMsg = err?.message || "Unknown production server error";
+        const errorHtml = `data:text/html,<html><head><title>AI Prompt Library - Startup Error</title></head><body style="background:%23090d16;color:%23ef4444;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;padding:24px;text-align:center;"><h1 style="font-size:22px;margin-bottom:8px;color:%23f87171;">Application Failed to Start</h1><p style="font-size:14px;color:%2394a3b8;max-width:500px;line-height:1.5;">The local application server could not be started. Please try restarting the application or reinstalling if the issue persists.</p><pre style="background:%231e293b;color:%23e2e8f0;padding:12px;border-radius:8px;font-size:12px;max-width:600px;overflow:auto;margin-top:16px;text-align:left;">${encodeURIComponent(errorMsg)}</pre></body></html>`;
+        mainWindow.loadURL(errorHtml).catch(() => { });
+      }
+      dialog.showErrorBox(
+        "AI Prompt Library Startup Error",
+        `Failed to start local application server:\n\n${err?.message || "Unknown error"}\n\nPlease restart the application or report this issue.`
+      );
     }
   }
 
@@ -240,6 +285,8 @@ ipcMain.handle("security:getStatus", () => getSecurityStatus());
 ipcMain.handle("security:unlock", (_, input: string) => unlockApplication(input));
 ipcMain.handle("security:changePassword", (_, currentPassword?: string, newPassword?: string) => setupOrUpdatePassword(currentPassword, newPassword));
 ipcMain.handle("security:setupPin", (_, password: string, pin: string) => setupOrUpdatePin(password, pin));
+ipcMain.handle("security:removePin", (_, pinOrPassword: string) => removePin(pinOrPassword));
+ipcMain.handle("security:removePassword", (_, currentPassword: string) => removePassword(currentPassword));
 ipcMain.handle("security:generateRecoveryKey", () => generateAndSaveRecoveryKey());
 ipcMain.handle("security:recoverAccess", (_, recoveryInput: string, newPassword: string, method: "key" | "questions") => recoverAndResetCredentials(recoveryInput, newPassword, method));
 ipcMain.handle("security:toggleLock", (_, enabled: boolean) => toggleAppLock(enabled));
@@ -291,9 +338,10 @@ protectedHandle("storage:openStorageFolder", async (_, targetPath?: string) => {
 
 // App Lifecycle
 app.whenReady().then(async () => {
-  console.log("[Main] Electron application starting...");
+  console.log("[BOOT-02] app.whenReady entered");
 
   try {
+    console.log("[BOOT-03] security initialization");
     const status = getSecurityStatus();
     if (status.enabled && status.requireStartup) {
       setAppLockedState(true);
@@ -303,30 +351,34 @@ app.whenReady().then(async () => {
   }
 
   try {
-    await createWindow();
-  } catch (winErr) {
-    console.error("[Main] Failed to create main window:", winErr);
-  }
-
-  try {
+    console.log("[BOOT-05] updater initialization");
     initializeUpdater(() => mainWindow);
   } catch (updErr) {
     console.error("[Main] Failed to initialize updater:", updErr);
   }
 
   try {
-    setupSystemTray(() => mainWindow);
-  } catch (trayErr) {
-    console.error("[Main] Failed to initialize system tray:", trayErr);
-  }
-
-  try {
+    console.log("[BOOT-07] license initialization");
     initializeLicenseManager();
   } catch (licErr) {
     console.error("[Main] Failed to initialize license manager:", licErr);
   }
 
   try {
+    await createWindow();
+  } catch (winErr) {
+    console.error("[Main] Failed to create main window:", winErr);
+  }
+
+  try {
+    console.log("[BOOT-06] tray initialization");
+    setupSystemTray(() => mainWindow);
+  } catch (trayErr) {
+    console.error("[Main] Failed to initialize system tray:", trayErr);
+  }
+
+  try {
+    console.log("[BOOT-08] backup scheduler initialization");
     startBackupScheduler(() => getAppServerUrl());
   } catch (schedErr) {
     console.error("[Main] Failed to initialize backup scheduler:", schedErr);
@@ -340,12 +392,18 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
+  console.log("[Main] App event: window-all-closed");
   if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
+app.on("before-quit", () => {
+  console.log("[Main] App event: before-quit");
+});
+
 app.on("will-quit", () => {
+  console.log("[Main] App event: will-quit");
   stopBackupScheduler();
   destroySystemTray();
   if (prodServer) {
@@ -353,4 +411,12 @@ app.on("will-quit", () => {
     prodServer.close();
     prodServer = null;
   }
+});
+
+app.on("quit", (_e, exitCode) => {
+  console.log("[Main] App event: quit with code:", exitCode);
+});
+
+process.on("exit", (code) => {
+  console.log("[Main] Process event: exit with code:", code);
 });

@@ -20,64 +20,75 @@ function sendStatusToWindow(payload: UpdateStatusPayload) {
   }
 }
 
+let isInitialized = false;
+
 export function initializeUpdater(getWin: () => BrowserWindow | null) {
   mainWindowGetter = getWin;
 
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  if (!isInitialized) {
+    isInitialized = true;
 
-  autoUpdater.on("checking-for-update", () => {
-    console.log("[Updater] Checking for updates on GitHub Releases...");
-    sendStatusToWindow({ status: "checking" });
-  });
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
 
-  autoUpdater.on("update-available", (info) => {
-    console.log(`[Updater] Update available: v${info.version}`);
-    sendStatusToWindow({ status: "available", version: info.version });
-  });
-
-  autoUpdater.on("update-not-available", (info) => {
-    console.log(`[Updater] Up to date (current: v${info.version || app.getVersion()})`);
-    sendStatusToWindow({ status: "not-available", version: info.version || app.getVersion() });
-  });
-
-  autoUpdater.on("error", (err) => {
-    console.error("[Updater] Update error:", err ? err.message : err);
-    // If in dev mode or checking fails, show not-available rather than sticking in error
-    if (app.isPackaged === false) {
-      sendStatusToWindow({ status: "not-available", version: app.getVersion() });
-    } else {
-      sendStatusToWindow({ status: "error", error: err ? err.message : String(err) });
-    }
-  });
-
-  autoUpdater.on("download-progress", (progress) => {
-    console.log(`[Updater] Download speed: ${progress.bytesPerSecond} - Downloaded ${progress.percent.toFixed(1)}%`);
-    sendStatusToWindow({
-      status: "downloading",
-      percent: progress.percent,
-      bytesPerSecond: progress.bytesPerSecond,
+    autoUpdater.on("checking-for-update", () => {
+      console.log("[Updater] Checking for updates on GitHub Releases...");
+      sendStatusToWindow({ status: "checking" });
     });
-  });
 
-  autoUpdater.on("update-downloaded", (info) => {
-    console.log(`[Updater] Update downloaded: v${info.version}. Ready to install.`);
-    sendStatusToWindow({ status: "downloaded", version: info.version });
-  });
+    autoUpdater.on("update-available", (info) => {
+      console.log(`[Updater] Update available: v${info.version}`);
+      sendStatusToWindow({ status: "available", version: info.version });
+    });
 
-  // Handle IPC request to install update immediately
-  ipcMain.handle("app:installUpdateNow", () => {
-    console.log("[Updater] User requested immediate update installation. Quitting and installing silently...");
-    sendStatusToWindow({ status: "idle" });
-    autoUpdater.quitAndInstall(true, true);
-  });
+    autoUpdater.on("update-not-available", (info) => {
+      console.log(`[Updater] Up to date (current: v${info.version || app.getVersion()})`);
+      sendStatusToWindow({ status: "not-available", version: info.version || app.getVersion() });
+    });
 
-  // Handle IPC request for current update status
-  ipcMain.handle("app:getUpdateStatus", () => {
-    return currentStatus;
-  });
+    autoUpdater.on("error", (err) => {
+      console.error("[Updater] Update error:", err ? err.message : err);
+      // If in dev mode or checking fails, show not-available rather than sticking in error
+      if (app.isPackaged === false) {
+        sendStatusToWindow({ status: "not-available", version: app.getVersion() });
+      } else {
+        sendStatusToWindow({ status: "error", error: err ? err.message : String(err) });
+      }
+    });
 
-  // Perform check ONLY in packaged production builds on startup
+    autoUpdater.on("download-progress", (progress) => {
+      console.log(`[Updater] Download speed: ${progress.bytesPerSecond} - Downloaded ${progress.percent.toFixed(1)}%`);
+      sendStatusToWindow({
+        status: "downloading",
+        percent: progress.percent,
+        bytesPerSecond: progress.bytesPerSecond,
+      });
+    });
+
+    autoUpdater.on("update-downloaded", (info) => {
+      console.log(`[Updater] Update downloaded: v${info.version}. Ready to install.`);
+      sendStatusToWindow({ status: "downloaded", version: info.version });
+    });
+
+    // Register IPC handlers idempotently
+    try {
+      ipcMain.removeHandler("app:installUpdateNow");
+    } catch { }
+    ipcMain.handle("app:installUpdateNow", () => {
+      console.log("[Updater] User requested immediate update installation. Quitting and installing silently...");
+      sendStatusToWindow({ status: "idle" });
+      autoUpdater.quitAndInstall(true, true);
+    });
+
+    try {
+      ipcMain.removeHandler("app:getUpdateStatus");
+    } catch { }
+    ipcMain.handle("app:getUpdateStatus", () => {
+      return currentStatus;
+    });
+  }
+
+  // Perform initial check in packaged production builds
   if (app.isPackaged === true) {
     autoUpdater.checkForUpdatesAndNotify().catch((err) => {
       console.error("[Updater] Failed initial update check:", err);

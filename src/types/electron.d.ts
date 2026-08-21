@@ -34,6 +34,8 @@ export interface ElectronAPI {
     unlock: (input: string) => Promise<{ success: boolean; error?: string; lockoutRemaining?: number }>;
     changePassword: (currentPassword?: string, newPassword?: string) => Promise<{ success: boolean; error?: string }>;
     setupPin: (password: string, pin: string) => Promise<{ success: boolean; error?: string }>;
+    removePin: (currentPinOrPassword: string) => Promise<{ success: boolean; error?: string }>;
+    removePassword: (currentPassword: string) => Promise<{ success: boolean; error?: string }>;
     generateRecoveryKey: () => Promise<{ success: boolean; recoveryKey?: string; error?: string }>;
     recoverAccess: (recoveryInput: string, newPassword: string, method: "key" | "questions") => Promise<{ success: boolean; error?: string }>;
     toggleLock: (enabled: boolean) => Promise<{ success: boolean }>;
