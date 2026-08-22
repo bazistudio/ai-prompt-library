@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+console.log("[PRELOAD] preload script execution started");
+
 const api = {
   getAppInfo: () => ipcRenderer.invoke("app:getAppInfo"),
   openExternal: (url: string) => ipcRenderer.invoke("app:openExternal", url),

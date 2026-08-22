@@ -11,7 +11,7 @@ let _customDbPath: string | null = null;
  * This makes it safe to run in both Node.js (Next.js server) and Electron processes.
  */
 export function getDefaultDatabasePath(): string {
-  const appName = 'ai-prompt-library';
+  const appName = process.env.NODE_ENV === 'development' ? 'ai-prompt-library-dev' : 'ai-prompt-library';
   const fileName = 'prompt_library.db';
 
   if (process.platform === 'win32') {

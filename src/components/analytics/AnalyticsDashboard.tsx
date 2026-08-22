@@ -40,8 +40,11 @@ export function AnalyticsDashboard({ initialData }: AnalyticsDashboardProps) {
       setRefreshing(true);
       const res = await fetch("/api/analytics");
       if (res.ok) {
-        const json = await res.json();
-        setData(json);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const json = await res.json();
+          setData(json);
+        }
       }
     } catch (err) {
       console.error("Failed to load analytics:", err);

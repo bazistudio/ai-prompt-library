@@ -40,7 +40,21 @@ process.on("unhandledRejection", (reason) => {
   console.error("[Main] Unhandled Rejection:", reason);
 });
 
-// Enforce single-instance lock across both dev and production
+app.on("render-process-gone", (_event, webContents, details) => {
+  console.error("[DIAGNOSTIC] APP RENDER PROCESS GONE:", JSON.stringify(details), "URL:", webContents?.getURL());
+});
+
+app.on("child-process-gone", (_event, details) => {
+  console.error("[DIAGNOSTIC] APP CHILD PROCESS GONE:", JSON.stringify(details));
+});
+
+// Enforce separate single-instance locks and data for dev vs production
+if (!app.isPackaged) {
+  const devDataPath = path.join(app.getPath("appData"), "ai-prompt-library-dev");
+  app.setPath("userData", devDataPath);
+}
+
+// Enforce single-instance lock across identical environments
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   console.log("[Main] Another instance is already running. Quitting.");
@@ -193,12 +207,16 @@ async function createWindow() {
 
   setupApplicationMenu(mainWindow);
 
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    console.error("[DIAGNOSTIC] RENDER PROCESS GONE on mainWindow:", JSON.stringify(details));
+  });
+
   mainWindow.webContents.on("did-finish-load", () => {
-    console.log("[BOOT-11] renderer finished loading");
+    console.log("[BOOT-11] renderer finished loading. Current URL:", mainWindow?.webContents.getURL());
   });
 
   mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-    console.error(`[Main] Window failed to load: ${errorDescription} (${errorCode}) at ${validatedURL} (isMainFrame: ${isMainFrame})`);
+    console.error(`[DIAGNOSTIC] Window failed to load: ${errorDescription} (${errorCode}) at ${validatedURL} (isMainFrame: ${isMainFrame})`);
     if (errorCode !== -3 && mainWindow && !mainWindow.isDestroyed() && isMainFrame) {
       console.log("[Main] Retrying window load in 1.5s...");
       setTimeout(() => {

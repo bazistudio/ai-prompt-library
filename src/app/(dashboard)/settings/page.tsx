@@ -10,7 +10,7 @@ import { AISettings } from "@/components/settings/AISettings";
 import { AboutSettings } from "@/components/settings/AboutSettings";
 import { LicenseSettings } from "@/components/settings/LicenseSettings";
 import { BackupSettings } from "@/components/settings/BackupSettings";
-import { Palette, PenTool, Library, User, Database, Info, ShieldCheck, Bot, Archive } from "lucide-react";
+import { Palette, PenTool, Library, User, Database, Info, ShieldCheck, Bot, Archive, RotateCcw } from "lucide-react";
 
 type SettingsTab = "appearance" | "editor" | "library" | "ai" | "account" | "storage" | "backup" | "license" | "about";
 
@@ -28,6 +28,23 @@ export default function SettingsPage() {
     { id: "license", label: "License & Edition", icon: ShieldCheck },
     { id: "about", label: "About", icon: Info },
   ] as const;
+
+  const handleResetSettings = () => {
+    if (confirm("Are you sure you want to reset all settings to default? This cannot be undone.")) {
+      const keys = [
+        "pref-theme",
+        "pref-primary-color",
+        "pref-accent-color",
+        "pref-accent-highlights",
+        "pref-reduce-animations",
+        "ai-prompt-library:editor-preferences",
+        "ai-prompt-library:library-preferences",
+        "ai_prompt_library_ai_settings_v1"
+      ];
+      keys.forEach(k => localStorage.removeItem(k));
+      window.location.reload();
+    }
+  };
 
   const renderActiveSection = () => {
     switch (activeTab) {
@@ -83,6 +100,16 @@ export default function SettingsPage() {
               </button>
             );
           })}
+
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <button
+              onClick={handleResetSettings}
+              className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-xs font-semibold text-danger hover:bg-danger/10 transition-all cursor-pointer text-left w-full border-l-2 border-transparent"
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span>Reset All Settings</span>
+            </button>
+          </div>
         </nav>
 
         {/* Right Column: Active Preferences Section Content */}

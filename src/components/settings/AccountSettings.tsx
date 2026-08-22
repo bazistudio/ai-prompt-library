@@ -79,9 +79,15 @@ export function AccountSettings() {
       setLoading(false);
     } else {
       fetch("/api/auth/me")
-        .then((res) => res.json())
+        .then((res) => {
+          const contentType = res.headers.get("content-type");
+          if (res.ok && contentType && contentType.includes("application/json")) {
+            return res.json();
+          }
+          return null;
+        })
         .then((data) => {
-          if (data.success && data.user) {
+          if (data && data.success && data.user) {
             setProfile(data.user);
           }
         })
