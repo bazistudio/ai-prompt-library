@@ -180,7 +180,7 @@ async function createWindow() {
 
   if (app.isPackaged === false && process.env.FORCE_PROD_SERVER !== "true") {
     console.log("[Main] Development Mode (app.isPackaged === false)");
-    targetUrl = `${NEXT_DEV_URL}/test-sqlite`;
+    targetUrl = `${NEXT_DEV_URL}/dashboard`;
 
     mainWindow.loadURL(
       `data:text/html,<html><head><title>AI Prompt Library</title></head><body style="background:%23090d16;color:%236366f1;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="font-size:24px;font-weight:bold;margin-bottom:8px;">AI Prompt Library</div><div style="font-size:13px;color:%2394a3b8;">Initializing local development server...</div></body></html>`
@@ -206,7 +206,7 @@ async function createWindow() {
 
     try {
       const baseUrl = await startProductionServer();
-      targetUrl = `${baseUrl}/test-sqlite`;
+      targetUrl = `${baseUrl}/dashboard`;
       console.log(`[BOOT-10] BrowserWindow loadURL: ${targetUrl}`);
       await mainWindow.loadURL(targetUrl);
     } catch (err: any) {
