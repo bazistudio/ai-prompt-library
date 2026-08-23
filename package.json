@@ -2,12 +2,14 @@
   "name": "ai-prompt-library",
   "version": "1.0.7",
   "private": true,
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "next dev -p 3000 -H 0.0.0.0",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "seed": "node scripts/seed-test-user.mjs"
+    "seed": "node scripts/seed-test-user.mjs",
+    "electron:compile": "tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --no-splitting --external electron --external better-sqlite3 --external next"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
@@ -34,9 +36,11 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
+    "electron": "^34.5.8",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "tailwindcss": "^4",
+    "tsup": "^8.5.1",
     "typescript": "^5"
   }
 }
