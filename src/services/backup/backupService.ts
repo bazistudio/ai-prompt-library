@@ -1,9 +1,7 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import * as archiverNamespace from "archiver";
-// Next.js Turbopack compat
-const archiver = (archiverNamespace as any).default || archiverNamespace;
+const archiver = require("archiver");
 import { getDatabase, getDatabasePath } from "@/database/local/manager";
 import { getSettingDb, SETTING_KEYS } from "@/database/local/settingsQueries";
 import type { Database } from "better-sqlite3";
