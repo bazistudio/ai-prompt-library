@@ -1,6 +1,6 @@
 {
   "name": "ai-prompt-library",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {
@@ -10,7 +10,8 @@
     "lint": "eslint",
     "seed": "node scripts/seed-test-user.mjs",
     "electron:compile": "tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --no-splitting --external electron --external better-sqlite3 --external next",
-    "electron:pack": "npm run build && npm run electron:compile && electron-builder --win dir"
+    "electron:pack": "npm run build && npm run electron:compile && electron-builder --win dir",
+    "electron:nsis": "npm run build && npm run electron:compile && electron-builder --win nsis"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
@@ -67,9 +68,17 @@
     ],
     "win": {
       "target": [
+        "nsis",
         "dir"
       ],
       "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AI Prompt Library"
     }
   }
 }
