@@ -1,6 +1,6 @@
 {
   "name": "ai-prompt-library",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {
@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "node scripts/seed-test-user.mjs",
-    "electron:compile": "tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --no-splitting --external electron --external better-sqlite3 --external next"
+    "electron:compile": "tsup electron/main.ts electron/preload.ts --out-dir dist-electron --format cjs --no-splitting --external electron --external better-sqlite3 --external next",
+    "electron:pack": "npm run build && npm run electron:compile && electron-builder --win dir"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
@@ -42,5 +43,33 @@
     "tailwindcss": "^4",
     "tsup": "^8.5.1",
     "typescript": "^5"
+  },
+  "build": {
+    "appId": "com.bazistudio.ai-prompt-library",
+    "productName": "AI Prompt Library",
+    "copyright": "Copyright © 2026 BaziStudio",
+    "npmRebuild": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist-electron/**/*",
+      ".next/**/*",
+      "! .next/cache",
+      "! .next/dev",
+      "! .next/diagnostics",
+      "! **/*.map",
+      "public/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**/*"
+    ],
+    "win": {
+      "target": [
+        "dir"
+      ],
+      "verifyUpdateCodeSignature": false
+    }
   }
 }

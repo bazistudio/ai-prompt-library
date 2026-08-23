@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Folder,
@@ -15,7 +15,7 @@ import {
 import { ProjectItem, fetchProjects, deleteProject } from "@/services/projects/projectService";
 import { ProjectModal } from "./ProjectModal";
 
-export function WorkspaceSwitcher() {
+function WorkspaceSwitcherContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -230,5 +230,13 @@ export function WorkspaceSwitcher() {
         projectToEdit={projectToEdit}
       />
     </div>
+  );
+}
+
+export function WorkspaceSwitcher() {
+  return (
+    <Suspense fallback={<div className="h-9 w-full rounded-xl bg-card border border-border animate-pulse" />}>
+      <WorkspaceSwitcherContent />
+    </Suspense>
   );
 }

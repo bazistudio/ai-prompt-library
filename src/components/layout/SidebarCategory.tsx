@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
@@ -17,7 +17,7 @@ import { CategoryItem, fetchCategories } from "@/services/categories/categorySer
 import { CategoryModal } from "@/components/categories/CategoryModal";
 import { WorkspaceSwitcher } from "@/components/workspaces/WorkspaceSwitcher";
 
-export function SidebarCategory() {
+function SidebarCategoryContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -216,5 +216,13 @@ export function SidebarCategory() {
         categoryToEdit={categoryToEdit}
       />
     </div>
+  );
+}
+
+export function SidebarCategory() {
+  return (
+    <Suspense fallback={<div className="p-4 space-y-4 animate-pulse"><div className="h-6 w-3/4 bg-card rounded" /><div className="h-4 w-1/2 bg-card rounded" /></div>}>
+      <SidebarCategoryContent />
+    </Suspense>
   );
 }

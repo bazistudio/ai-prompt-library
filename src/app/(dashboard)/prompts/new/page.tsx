@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+export const dynamic = "force-dynamic";
+
+import { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, Loader2, Tag, Folder, Sparkles, Layers } from "lucide-react";
@@ -12,7 +14,7 @@ import { FirstUseStorageModal } from "@/components/storage/FirstUseStorageModal"
 import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
 import { TextDirection } from "@/components/editor/languageDetector";
 
-export default function CreatePromptPage() {
+function CreatePromptContent() {
   const router = useRouter();
 
   const [title, setTitle] = useState("");
@@ -272,6 +274,14 @@ export default function CreatePromptPage() {
         onSelectSuccess={handleFirstUseStorageSuccess}
       />
     </div>
+  );
+}
+
+export default function CreatePromptPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-muted-foreground text-sm">Loading editor...</div>}>
+      <CreatePromptContent />
+    </Suspense>
   );
 }
 
