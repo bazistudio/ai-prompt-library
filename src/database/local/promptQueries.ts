@@ -1,6 +1,6 @@
 import { Database } from 'better-sqlite3';
 import { v7 as uuidv7 } from 'uuid';
-import { savePromptFile } from '../../../electron/fileStorageManager';
+import { savePromptFile } from '@/services/storage/fileStorageManager';
 
 export interface CreatePromptPayload {
   title: string;

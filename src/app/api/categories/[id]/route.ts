@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSQLiteDB } from "@/database/local/db";
 import { renameCategoryDb } from "@/database/local/categoryQueries";
 import { getSettingDb, SETTING_KEYS } from "@/database/local/settingsQueries";
-import { renameCategoryFolder } from "../../../../../electron/fileStorageManager";
+import { renameCategoryFolder } from "@/services/storage/fileStorageManager";
 
 export async function PATCH(
   request: NextRequest,

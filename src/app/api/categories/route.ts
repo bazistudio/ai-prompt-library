@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSQLiteDB } from "@/database/local/db";
 import { getAllCategoriesDb, createCategoryDb } from "@/database/local/categoryQueries";
 import { getSettingDb, SETTING_KEYS } from "@/database/local/settingsQueries";
-import { ensureCategoryFolders } from "../../../../electron/fileStorageManager";
+import { ensureCategoryFolders } from "@/services/storage/fileStorageManager";
 
 export async function GET() {
   try {

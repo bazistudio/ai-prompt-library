@@ -3,7 +3,7 @@ import path from "path";
 import { getSQLiteDB } from "@/database/local/db";
 import { getSettingDb, setSettingDb, SETTING_KEYS } from "@/database/local/settingsQueries";
 import { getAllCategoriesDb } from "@/database/local/categoryQueries";
-import { ensureCategoryFolders, moveLibrary } from "../../../../electron/fileStorageManager";
+import { ensureCategoryFolders, moveLibrary } from "@/services/storage/fileStorageManager";
 
 export async function GET() {
   try {
